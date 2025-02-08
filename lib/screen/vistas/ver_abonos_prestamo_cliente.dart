@@ -47,7 +47,7 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('No hay abonos en el momento'));
+            return const Center(child: Text('No hay abonos en el momento.'));
           } else {
             final abonos = snapshot.data!;
             return Column(
