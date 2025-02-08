@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/services/validacion_estado_usuario.dart';
+import '../widgets/spinner.dart';
 
 class VerListaPrestamos extends StatefulWidget {
   const VerListaPrestamos({super.key});
@@ -27,14 +28,18 @@ class VerListaPrestamos extends StatefulWidget {
 
 class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
   final _pref = PreferenciasUsuario();
+  List<Map<String, dynamic>> _roles = [];
+  String? _rolSeleccionado;
 
   Future<List<dynamic>> fetchListaPrestamos() async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
-      // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
-    final idConsultado = _pref.idUser;
+    final idConsultado =
+        (_pref.cargo == '4' || _pref.cargo == '3') && _rolSeleccionado != null
+            ? _rolSeleccionado!
+            : _pref.idUser;
     final fecha = Databaseservices().obtenerFechaActual();
     var url = Uri.parse(
         "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fecha");
@@ -54,33 +59,55 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
   @override
   void initState() {
     super.initState();
-    _verificarEstadoUsuario();
-  }
-
-  Future<void> _verificarEstadoUsuario() async {
-    try {
-      final nuevoEstado = await Databaseservices().fetchEstadoUsuario();
-      if (nuevoEstado != "1") {
-        Databaseservices().reiniciarDatos();
-        Navigator.pushReplacementNamed(context, rutaLogin);
-      }
-    } catch (e) {
-      debugPrint("Error al cargar : $e");
+    if (_pref.cargo == '4' || _pref.cargo == '3') {
+      _loadEmpleados();
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    _pref.ultimaPagina = rutaNavBarPrestamos;
-    return Scaffold(
-      appBar: const PreferredSize(
-        preferredSize: Size.fromHeight(AppMedidas.medidaAppBarLargo),
-        child: TitulosAppBar(nombreRecibido: AppTextos.tituloAbonoPrestamo),
-      ),
-      drawer: const DrawerMenu(),
-      body: listaPrestamos(),
-    );
+  Future<void> _loadEmpleados() async {
+    try {
+      final empleados = await Databaseservices().fetchEmpleados(_pref.cargo);
+      setState(() {
+        _roles = empleados;
+      });
+    } catch (e) {
+      debugPrint("Error al cargar empleados: $e");
+    }
   }
+
+@override
+Widget build(BuildContext context) {
+  _pref.ultimaPagina = rutaNavBarPrestamos;
+  final cargoEmpleado = _pref.cargo;
+  return Scaffold(
+    appBar: const PreferredSize(
+      preferredSize: Size.fromHeight(AppMedidas.medidaAppBarLargo),
+      child: TitulosAppBar(nombreRecibido: AppTextos.tituloAbonoPrestamo),
+    ),
+    drawer: const DrawerMenu(),
+    body: Column(
+      children: [
+        if (cargoEmpleado == '4' || cargoEmpleado == '3')
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: SpinnerEmpleados(
+              empleados: _roles,
+              valorSeleccionado: _rolSeleccionado,
+              valueid: "fk_roll",
+              nombreCompleto: "nombreCompleto",
+              onChanged: (value) {
+                setState(() {
+                  _rolSeleccionado = value;
+                  fetchListaPrestamos();
+                });
+              },
+            ),
+          ),
+        Expanded(child: listaPrestamos()),
+      ],
+    ),
+  );
+}
 
   Widget listaPrestamos() {
     return FutureBuilder<List<dynamic>>(
