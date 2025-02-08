@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:http/http.dart' as http;
 import 'package:cobrosapp/config/routes/apis.dart';
 import 'package:cobrosapp/config/services/formatomiles.dart';
 import 'package:cobrosapp/desing/coloresapp.dart';
 
+import '../../config/services/databaseservices.dart';
 import '../../config/services/validacion_estado_usuario.dart';
+import '../../config/shared/peferences.dart';
 
 class Clientepagoabonos extends StatefulWidget {
   final String idPrestamo;
@@ -17,6 +20,8 @@ class Clientepagoabonos extends StatefulWidget {
 }
 
 class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
+  
+  final _pref = PreferenciasUsuario();
   
   Future<List<dynamic>> consultaAbonos() async {
     var url =
@@ -64,15 +69,38 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
                         margin: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 16),
                         child: ListTile(
-                          leading: CircleAvatar(
-                            foregroundColor: ColoresApp.blanco,
-                            backgroundColor: ColoresApp.verde,
-                            child: Text((index + 1).toString()),
-                          ),
-                          title: Text(
-                              'Cantidad: \$${FormatoMiles().formatearCantidad(abono['abo_cantidad'])}'),
-                          subtitle: Text('Fecha: ${abono['abo_fecha']}'),
+                        leading: CircleAvatar(
+                          foregroundColor: ColoresApp.blanco,
+                          backgroundColor: ColoresApp.verde,
+                          child: Text((index + 1).toString()),
                         ),
+                        title: Text(
+                            'Cantidad: \$${FormatoMiles().formatearCantidad(abono['abo_cantidad'])}'),
+                        subtitle: Text('Fecha: ${abono['abo_fecha']}'),
+                        trailing: _pref.cargo == "4"
+                            ? IconButton(
+                                onPressed: () async {
+                                  final data = await Databaseservices()
+                                      .eliminarAbono(abono['idabonos']);
+                                  if (data) {
+                                    SmartDialog.showToast(
+                                        "Abono eliminado con éxito");
+                                    // Refrescar la vista
+                                    setState(() {
+                                      consultaAbonos();
+                                    });
+                                  } else {
+                                    SmartDialog.showToast(
+                                        "No se pudo eliminar el abono");
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.delete,
+                                  color: ColoresApp.rojoLogo,
+                                ),
+                              )
+                            : null,
+                      ),
                       );
                     },
                   ),
