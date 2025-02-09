@@ -613,11 +613,18 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
 
   Future<bool> _insertarAbonoPhp(String idPrestamo) async {
     try {
+      String idEmpleadoSeleccionado = _pref.idUser; // Valor por defecto
+      if (_pref.cargo == '3' || _pref.cargo == '4') {
+        // Si hay un empleado seleccionado en el spinner y no está vacío, usarlo
+        if (_rolSeleccionado != null && _rolSeleccionado!.isNotEmpty) {
+          idEmpleadoSeleccionado = _rolSeleccionado!;
+        }
+      }
       final montoSinFormato = _controladorMonto.text.replaceAll('.', '');
       var url = Uri.parse(ApiConstants.insertarAbonoPrestamoCliente);
       final response = await http.post(url, body: {
         'idprestamo': idPrestamo,
-        'idempleado': _pref.idUser,
+        'idempleado': idEmpleadoSeleccionado,
         'monto': montoSinFormato,
       });
 
