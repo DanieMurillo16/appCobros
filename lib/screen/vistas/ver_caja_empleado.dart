@@ -515,8 +515,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                 FormatoNumero(
                   numero: totalCaja,
                   color: ColoresApp.negro,
-                  fontSize: 35,
-                  fontSize2: 12,
+                  fontSize: 25,
+                  fontSize2: 10,
                 ),
                 const Divider(),
               ],
