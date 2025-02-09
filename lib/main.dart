@@ -18,7 +18,7 @@ void main() async {
     runApp(const MyApp());
   });
 }
-
+// para ver los cambios de codigo en pcs diferentes
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
