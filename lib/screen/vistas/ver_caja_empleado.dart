@@ -319,13 +319,13 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       fecha.text = _dataBaseServices.obtenerFechaActual();
     }
     int ano = int.parse(_dataBaseServices.obtenerFechaActual().substring(0, 4));
-    int mes = int.parse(_dataBaseServices.obtenerFechaActual().substring(5, 8));
+    int mes = int.parse(_dataBaseServices.obtenerFechaActual().substring(5, 7));
     int dia = int.parse(_dataBaseServices.obtenerFechaActual().substring(8, 10));
     debugPrint("año: $ano mes: $mes dia: $dia");
     return FormBuilderDateTimePicker(
       name: 'fecha',
       controller: fecha,
-      initialValue: DateTime(ano, 2, 9),
+      initialValue: DateTime(ano, mes, dia),
       inputType: InputType.date,
       format: DateFormat('yyyy-MM-dd'),
       enabled: enabled, // sólo habilitado si cargo == 4
