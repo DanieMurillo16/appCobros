@@ -315,6 +315,9 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget _campoFecha({required bool enabled}) {
+    if (fecha.text.isEmpty) {
+      fecha.text = _dataBaseServices.obtenerFechaActual();
+    }
     return FormBuilderDateTimePicker(
       name: 'fecha',
       controller: fecha,
