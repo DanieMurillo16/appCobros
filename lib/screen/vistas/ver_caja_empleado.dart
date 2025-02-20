@@ -319,7 +319,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     int ano = int.parse(_dataBaseServices.obtenerFechaActual().substring(0, 4));
     int mes = int.parse(_dataBaseServices.obtenerFechaActual().substring(5, 7));
     int dia = int.parse(_dataBaseServices.obtenerFechaActual().substring(8, 10));
-    debugPrint("año: $ano mes: $mes dia: $dia");
     return FormBuilderDateTimePicker(
       name: 'fecha',
       controller: fecha,

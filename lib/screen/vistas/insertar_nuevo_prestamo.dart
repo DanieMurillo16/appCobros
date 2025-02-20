@@ -325,7 +325,8 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
   }
 
   Widget _botonFlotante(BuildContext context) {
-    return FloatingActionButton(
+    return FloatingActionButton.extended(
+      label: const Text('Crear prestamo'),
       backgroundColor: ColoresApp.verde,
       foregroundColor: ColoresApp.blanco,
       onPressed: _isLoading
@@ -372,7 +373,8 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
                 await _mostrarDialogoConfirmacion(context, datosPrestamo);
               }
             },
-      child: const Icon(Icons.add),
+      icon: const Icon(Icons.add),
+      
     );
   }
 
@@ -441,7 +443,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Persona:'),
+                const Text('Datos del cliente'),
                 Text('Identificación: ${datosPrestamo["identificacion"]}'),
                 Text(
                     'Nombre: ${datosPrestamo["nombre"]} ${datosPrestamo["apellido"]}'),
@@ -465,9 +467,12 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
                 Navigator.of(context).pop(); // Cierra el diálogo
               },
             ),
-            TextButton(
+            FilledButton(
+              style: ButtonStyle(
+                backgroundColor: WidgetStateProperty.all(ColoresApp.verde),
+              ),
               child: const Text('Sí, es correcta',
-                  style: TextStyle(color: ColoresApp.verde)),
+                  style: TextStyle(color: ColoresApp.blanco)),
               onPressed: () async {
                 // en lugar de pop aquí, primero ejecutamos la inserción
                 bool exito = await _crearPrestamo(context, datosPrestamo);
