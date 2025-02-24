@@ -54,8 +54,8 @@ class _GastosStateState extends BaseScreen<GastosState> {
 
   // Opciones para el tipo de caja
   final List<String> _tiposCaja = [
-    "Caja general",
-    "Caja diaria",
+    "Caja General",
+    "Caja Diaria",
   ];
 
   // Lista de empleados para el dropdown
