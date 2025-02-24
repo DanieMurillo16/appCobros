@@ -464,12 +464,47 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                       Text(movimiento['movi_fecha']),
                     ],
                   ),
-                  trailing: Text(
-                    FormatoMiles().formatearCantidad(movimiento['movi_valor']),
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: colorValor,
-                      fontWeight: FontWeight.bold,
+                  trailing: SizedBox(
+                    width: 120,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          FormatoMiles()
+                              .formatearCantidad(movimiento['movi_valor']),
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: colorValor,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (_pref.cargo == "4")
+                          IconButton(
+                              onPressed: () async {
+                                final data = await Databaseservices()
+                                    .eliminarMovimiento(
+                                        movimiento['idmovimiento'].toString());
+                                if (data) {
+                                  SmartDialog.showToast(
+                                      "Movimiento eliminado con éxito");
+                                  // Refrescar la vista
+                                  setState(() {
+                                    _futureCaja =
+                                        _calcularTotalRecaudado(context);
+                                    _futureMovimientos =
+                                        _consultarListadoReporteAbonosClientes();
+                                  });
+                                } else {
+                                  SmartDialog.showToast(
+                                      "No se pudo eliminar el movimiento");
+                                }
+                              },
+                              icon: const Icon(
+                                Icons.delete,
+                                color: ColoresApp.rojoLogo,
+                              ))
+                      ],
                     ),
                   ),
                 );

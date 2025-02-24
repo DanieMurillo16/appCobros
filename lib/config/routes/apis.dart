@@ -52,4 +52,6 @@ class ApiConstants {
       '$baseUrl/actualizarEstadoUsuario.php?id=';
   static const String eliminarAbono =
       '$baseUrl/eliminarAbono.php?id=';
+  static const String eliminarMovimiento =
+      '$baseUrl/eliminarMovimiento.php?id=';
 }

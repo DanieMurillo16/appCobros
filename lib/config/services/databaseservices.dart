@@ -580,6 +580,27 @@ class Databaseservices {
       throw Exception('Error en el servidor: ${response.statusCode}');
     }
   }
+  Future<bool> eliminarMovimiento(String id) async {
+    bool conectado = await Conexioninternet().isConnected();
+    if (!conectado) {
+      throw Exception('No tienes conexión a internet');
+    }
+
+    var url = Uri.parse(ApiConstants.eliminarMovimiento + id);
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return true;
+      } else {
+        SmartDialog.showToast(data['error'] ?? 'Error al eliminar Movimiento');
+        return false;
+      }
+    } else {
+      throw Exception('Error en el servidor: ${response.statusCode}');
+    }
+  }
 
   //--------------------------------------------------------------------------------------
 

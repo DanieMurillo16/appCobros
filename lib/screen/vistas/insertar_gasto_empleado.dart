@@ -43,6 +43,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
   final TextEditingController descripcionController = TextEditingController();
 
   bool isFormatting = false;
+  bool _isLoading = false;
   late Future<List<Map<String, dynamic>>> _futureMovimientos;
 
   // Opciones para el tipo de movimiento
@@ -78,6 +79,8 @@ class _GastosStateState extends BaseScreen<GastosState> {
   void dispose() {
     super.dispose();
     valorController.dispose();
+    descripcionController.dispose();
+    identificacionController.dispose();
   }
 
   Future<List<Map<String, dynamic>>> listaMovimientoscaja(
@@ -299,84 +302,112 @@ class _GastosStateState extends BaseScreen<GastosState> {
           const SizedBox(height: 24),
 
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: ColoresApp.rojo,
-            ),
-            onPressed: () async {
-              if (_pref.cargo != "4") {
-                final puedeInsertar = await verificarEstadoUsuarioCaja();
-                if (puedeInsertar == "1") {
-                  SmartDialog.showToast(
-                      "¡Su caja ya cerró!... No puede insertar más movimientos por el día de hoy.");
-                  return;
-                }
-              }
-              if (_formKey.currentState?.saveAndValidate() ?? false) {
-                SmartDialog.showLoading(msg: "Insertando movimiento...");
-                final formData = _formKey.currentState!.value;
-                // Obtener el valor y ajustarlo según el tipo de movimiento
-                String valor = valorController.text.trim().replaceAll(".", "");
-                if (formData['tipoMovimiento'] == "Gasto") {
-                  valor = "-$valor"; // Convertir a negativo si es un gasto
-                }
-                if (_pref.cargo == '4') {
-                  if (formData['tipoCaja'] == "Caja general") {
-                    final data = await Databaseservices().cerrarCajaCobrador(
-                        formData['empleado'], valor,
-                        descripcion: descripcionController.text.trim());
-                    if (data['success'] == true) {
-                      limpiarCampos();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('Movimiento registrado en caja general')),
-                      );
-                      SmartDialog.dismiss();
-                      return;
-                    } else {
-                      SmartDialog.showToast(
-                          data['error'] ?? 'Error al insertar');
-                      SmartDialog.dismiss();
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColoresApp.rojo,
+              ),
+              onPressed: _isLoading
+                  ? null // Deshabilita el botón si ya está cargando
+                  : () async {
+                      if (_formKey.currentState?.saveAndValidate() ?? false) {
+                        setState(() {
+                          _isLoading = true;
+                        });
 
-                      return;
-                    }
-                  }
-                }
-                final info = {
-                  "tipo": formData['tipoMovimiento'] == "Ingreso" ? "1" : "2",
-                  "valor": valorController.text.trim().replaceAll(".", ""),
-                  "descripcion": descripcionController.text.trim(),
-                  "fecha": Databaseservices().obtenerFechaActual(),
-                  "fk": _pref.idUser,
-                };
-                // Agregar empleado seleccionado si el cargo es 4
-                if (_pref.cargo == '4' && _rolSeleccionado != null) {
-                  info['fk'] = _rolSeleccionado!;
-                }
-                final bool registrado = await insertarNuevoMovimiento(info);
-                SmartDialog.dismiss();
-                if (registrado) {
-                  limpiarCampos();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Movimiento registrado')),
-                  );
-                  setState(() {
-                    _futureMovimientos = listaMovimientoscaja(_pref.idUser);
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Error al registrar el movimiento')),
-                  );
-                }
-              }
-            },
-            child: const Text('Registrar',
-                style: TextStyle(fontSize: 15, color: ColoresApp.blanco)),
-          ),
+                        if (_pref.cargo != "4") {
+                          final puedeInsertar =
+                              await verificarEstadoUsuarioCaja();
+                          if (puedeInsertar == "1") {
+                            SmartDialog.showToast(
+                                "¡Su caja ya cerró!... No puede insertar más movimientos por el día de hoy.");
+                            return;
+                          }
+                        }
+
+                        SmartDialog.showLoading(
+                            msg: "Insertando movimiento...");
+                        final formData = _formKey.currentState!.value;
+                        // Obtener el valor y ajustarlo según el tipo de movimiento
+                        String valor =
+                            valorController.text.trim().replaceAll(".", "");
+                        if (formData['tipoMovimiento'] == "Gasto") {
+                          valor =
+                              "-$valor"; // Convertir a negativo si es un gasto
+                        }
+                        if (_pref.cargo == '4') {
+                          if (formData['tipoCaja'] == "Caja general") {
+                            final data = await Databaseservices()
+                                .cerrarCajaCobrador(formData['empleado'], valor,
+                                    descripcion:
+                                        descripcionController.text.trim());
+                            if (data['success'] == true) {
+                              limpiarCampos();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        'Movimiento registrado en caja general')),
+                              );
+                              setState(() {
+                                _isLoading = false;
+                              });
+                              SmartDialog.dismiss();
+                              return;
+                            } else {
+                              SmartDialog.showToast(
+                                  data['error'] ?? 'Error al insertar');
+                              setState(() {
+                                _isLoading = false;
+                              });
+                              SmartDialog.dismiss();
+
+                              return;
+                            }
+                          }
+                        }
+                        final info = {
+                          "tipo": formData['tipoMovimiento'] == "Ingreso"
+                              ? "1"
+                              : "2",
+                          "valor":
+                              valorController.text.trim().replaceAll(".", ""),
+                          "descripcion": descripcionController.text.trim(),
+                          "fecha": Databaseservices().obtenerFechaActual(),
+                          "fk": _pref.idUser,
+                        };
+                        // Agregar empleado seleccionado si el cargo es 4
+                        if (_pref.cargo == '4' && _rolSeleccionado != null) {
+                          info['fk'] = _rolSeleccionado!;
+                        }
+                        final bool registrado =
+                            await insertarNuevoMovimiento(info);
+                        SmartDialog.dismiss();
+                        if (registrado) {
+                          limpiarCampos();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Movimiento registrado')),
+                          );
+                          setState(() {
+                            _futureMovimientos =
+                                listaMovimientoscaja(_pref.idUser);
+
+                            _isLoading = false;
+                          });
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content:
+                                    Text('Error al registrar el movimiento')),
+                          );
+                          setState(() {
+                            _isLoading = false;
+                          });
+                        }
+                      }
+                    },
+              child: const Text('Registrar',
+                  style: TextStyle(fontSize: 15, color: ColoresApp.blanco))),
           const SizedBox(height: 20),
           const Divider(),
-
           // FutureBuilder para mostrar la lista de movimientos
           FutureBuilder<List<Map<String, dynamic>>>(
             future: _futureMovimientos,
