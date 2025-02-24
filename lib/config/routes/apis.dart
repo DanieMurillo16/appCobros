@@ -32,7 +32,7 @@ class ApiConstants {
   static const String listaPrestamosCancelados =
       '$baseUrl/listaPrestamosCancelados.php?id=';
   static const String verAbonoPrestamoEspecifico =
-      '$baseUrl/VerAbonoPrestamoEspecifico.php?id_prestamo=';
+      '$baseUrl/VerAbonoPrestamoEspecifico2.php?id_prestamo=';
 
   //-----------------Inserciones
   static const String insertarAbonoPrestamoCliente =

@@ -52,7 +52,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
   // Lista de empleados (si el cargo es 3 o 4)
   List<Map<String, dynamic>> _roles = [];
   String? _rolSeleccionado;
-  late Future<List<dynamic>> _futureCalcularTotal;
+  late Future<Map<String, dynamic>> _futureCalcularTotal;
 
   @override
   void didChangeDependencies() {
@@ -76,7 +76,8 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
   @override
   void initState() {
     super.initState();
-    _futureCalcularTotal = Future.value([]); // Valor inicial para evitar error
+    _futureCalcularTotal = Future.value(
+        {'prestamo': {}, 'abonos': []}); // Valor inicial para evitar error
     final cargoEmpleado = _pref.cargo;
     if (cargoEmpleado == '3' || cargoEmpleado == '4') {
       _loadEmpleados();
@@ -367,94 +368,98 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                               height: 2.h,
                             ),
                             Expanded(
-                              child: FutureBuilder<List<dynamic>>(
-                                future: _futureCalcularTotal,
-                                builder: (context, snapshot) {
-                                  if (snapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const Center(
-                                        child: CircularProgressIndicator());
-                                  } else if (snapshot.hasError) {
-                                    return Center(
-                                        child:
-                                            Text('Error: ${snapshot.error}'));
-                                  } else if (!snapshot.hasData ||
-                                      snapshot.data!.isEmpty) {
-                                    return const Center(
-                                        child:
-                                            Text('No hay abonos disponibles'));
-                                  } else {
-                                    final abonos = snapshot.data!;
-                                    // Sumar monto
-                                    double totalMonto =
-                                        abonos.fold(0, (sum, item) {
-                                      double monto = double.tryParse(
-                                              item['abo_cantidad']
-                                                  .toString()
-                                                  .replaceAll(".", "")) ??
-                                          0.0;
-                                      return sum + monto;
-                                    });
-                                    double valorcuota = double.tryParse(
-                                            abonos[0]['pres_valorCuota']
+                                child: FutureBuilder<Map<String, dynamic>>(
+                              future: _futureCalcularTotal,
+                              builder: (context, snapshot) {
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const Center(
+                                      child: CircularProgressIndicator());
+                                } else if (snapshot.hasError) {
+                                  return Center(
+                                      child: Text('Error: ${snapshot.error}'));
+                                } else if (!snapshot.hasData) {
+                                  return const Center(
+                                      child: Text('No hay datos disponibles'));
+                                } else {
+                                  final data = snapshot.data!;
+                                  final prestamo = data['prestamo'];
+                                  final abonos = data['abonos'] as List;
+
+                                  // Calcular total abonos
+                                  double totalMonto =
+                                      abonos.fold(0.0, (sum, item) {
+                                    return sum +
+                                        (double.tryParse(item['abo_cantidad']
                                                 .toString()
                                                 .replaceAll(".", "")) ??
-                                        0.0;
+                                            0.0);
+                                  });
 
-                                    String fechaPrestamo =
-                                        abonos[0]['pres_fecha'];
-                                    double valorPrestamo = double.tryParse(
-                                            abonos[0]['pres_cantidadTotal']
-                                                .toString()
-                                                .replaceAll(".", "")) ??
-                                        0.0;
+                                  // Obtener datos del préstamo
+                                  double valorcuota = double.tryParse(
+                                          prestamo['pres_valorCuota']
+                                              .toString()
+                                              .replaceAll(".", "")) ??
+                                      0.0;
 
-                                    restateFinal = valorPrestamo - totalMonto;
+                                  double valorPrestamo = double.tryParse(
+                                          prestamo['pres_cantidad']
+                                              .toString()
+                                              .replaceAll(".", "")) ??
+                                      0.0;
 
-                                    final NumberFormat numberFormat =
-                                        NumberFormat('#,###', 'es_CO');
-                                    String valorcuotaFormateado =
-                                        numberFormat.format(valorcuota);
-                                    String valorPrestado =
-                                        numberFormat.format(valorPrestamo);
+                                  String fechaPrestamo = prestamo['pres_fecha'];
 
-                                    String totalMontoFormateado =
-                                        numberFormat.format(totalMonto);
-                                    return Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                      children: [
-                                        Text(
-                                          'Fecha prestamo: ${fechaPrestamo}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                          'Prestamo: \$${valorPrestado}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                          'Cuota: \$${valorcuotaFormateado}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                          'Abonos: \$${totalMontoFormateado}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        Text(
-                                          'Restante: \$${numberFormat.format(valorPrestamo - totalMonto)}',
-                                          style: const TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold),
-                                        ),
-                                        const Divider(),
+                                  restateFinal = valorPrestamo - totalMonto;
+
+                                  final NumberFormat numberFormat =
+                                      NumberFormat('#,###', 'es_CO');
+
+                                  return Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Fecha prestamo: $fechaPrestamo',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Prestamo: \$${numberFormat.format(valorPrestamo)}',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Cuota: \$${numberFormat.format(valorcuota)}',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Abonos: \$${numberFormat.format(totalMonto)}',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Restante: \$${numberFormat.format(restateFinal)}',
+                                        style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      const Divider(),
+                                      if (abonos.isEmpty)
+                                        const Center(
+                                          child: Padding(
+                                            padding: EdgeInsets.all(16),
+                                            child: Text(
+                                                'No hay abonos registrados para este préstamo.'),
+                                          ),
+                                        )
+                                      else
                                         Expanded(
                                           child: ListView.builder(
                                             itemCount: abonos.length,
@@ -490,7 +495,6 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                                                                 SmartDialog
                                                                     .showToast(
                                                                         "Abono eliminado con éxito");
-                                                                // Refrescar la vista
                                                                 setState(() {
                                                                   _futureCalcularTotal =
                                                                       _calcularTotalRecaudado();
@@ -511,12 +515,11 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                                             },
                                           ),
                                         ),
-                                      ],
-                                    );
-                                  }
-                                },
-                              ),
-                            ),
+                                    ],
+                                  );
+                                }
+                              },
+                            ))
                           ],
                         ),
                       ),
@@ -649,46 +652,58 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
     });
   }
 
-  Future<List<dynamic>> _calcularTotalRecaudado() async {
+  Future<Map<String, dynamic>> _calcularTotalRecaudado() async {
     if (!await Conexioninternet().isConnected()) {
       SmartDialog.showToast('No hay conexión a internet');
-      return [];
+      return {'prestamo': {}, 'abonos': []};
     }
 
-    // Si _clienteSeleccionado tiene "-", significa que viene en "idPrestamo-idPersona"
-    // De lo contrario, asumimos que solo tenemos el idPersona y necesitamos otro flujo
     if (_clienteSeleccionado == null || _clienteSeleccionado!.isEmpty) {
-      return [];
+      return {'prestamo': {}, 'abonos': []};
     }
 
     List<String> partes = _clienteSeleccionado!.split('-');
     String? idPrestamo;
-    if (partes.length >= 2) {
-      // Formato "idPrestamo-idPersona"
-      idPrestamo = partes[0];
-    } else {
-      // Solo tenemos idPersona; aquí podrías:
-      // 1. Obtener el idPrestamo a partir del idPersona en tu base de datos.
-      // 2. O tener un endpoint que permita listar abonos por idPersona.
-      // Ejemplo (usando el mismo endpoint si tu backend lo soporta):
-      final idPersona = partes[0];
-      var urlPersona =
-          Uri.parse(ApiConstants.verAbonoPrestamoEspecifico + idPersona);
-      final responsePersona = await http.get(urlPersona);
-      if (responsePersona.statusCode == 200) {
-        return jsonDecode(responsePersona.body);
+
+    try {
+      if (partes.length >= 2) {
+        // Formato "idPrestamo-idPersona"
+        idPrestamo = partes[0];
       } else {
-        throw Exception('Error al cargar abonos por persona');
+        // Solo tenemos idPersona
+        final idPersona = partes[0];
+        var urlPersona =
+            Uri.parse(ApiConstants.verAbonoPrestamoEspecifico + idPersona);
+        final responsePersona = await http.get(urlPersona);
+
+        if (responsePersona.statusCode == 200) {
+          final data = jsonDecode(responsePersona.body);
+          if (data == null || data.isEmpty) {
+            return {'prestamo': {}, 'abonos': []};
+          }
+          return data;
+        } else {
+          throw Exception('Error al cargar abonos por persona');
+        }
       }
-    }
-    // Si llegamos aquí, significa que sí tenemos idPrestamo
-    var url = Uri.parse(
-        ApiConstants.verAbonoPrestamoEspecifico + idPrestamo.toString());
-    final response = await http.get(url);
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      throw Exception('Error al cargar los clientes');
+
+      // Consulta por idPrestamo
+      var url = Uri.parse(
+          ApiConstants.verAbonoPrestamoEspecifico + idPrestamo.toString());
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data == null) {
+          return {'prestamo': {}, 'abonos': []};
+        }
+        return data;
+      } else {
+        throw Exception('Error al cargar los abonos');
+      }
+    } catch (e) {
+      debugPrint('Error en _calcularTotalRecaudado: $e');
+      return {'prestamo': {}, 'abonos': []};
     }
   }
 }
