@@ -206,7 +206,9 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     _pref.ultimaPagina = rutaCaja;
     return Scaffold(
       floatingActionButton: _pref.cargo == '4'
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
+              label: const Text('Cerrar Caja'),
+              icon: const Icon(Icons.lock),
               onPressed: () async {
                 if (!_puedeCerrarCaja) {
                   SmartDialog.showToast(
@@ -248,7 +250,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   ),
                 );
               },
-              child: const Icon(Icons.lock),
             )
           : null,
       backgroundColor: ColoresApp.blanco,
@@ -315,10 +316,10 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget _campoFecha({required bool enabled}) {
-    
     int ano = int.parse(_dataBaseServices.obtenerFechaActual().substring(0, 4));
     int mes = int.parse(_dataBaseServices.obtenerFechaActual().substring(5, 7));
-    int dia = int.parse(_dataBaseServices.obtenerFechaActual().substring(8, 10));
+    int dia =
+        int.parse(_dataBaseServices.obtenerFechaActual().substring(8, 10));
     return FormBuilderDateTimePicker(
       name: 'fecha',
       controller: fecha,
@@ -444,7 +445,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
             final movimientos = snapshot.data!;
             return ListView.builder(
               shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
               itemCount: movimientos.length,
               itemBuilder: (context, index) {
                 final movimiento = movimientos[index];
@@ -733,6 +733,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       throw Exception('Error al cargar los clientes');
     }
   }
+
   Future<List<dynamic>> fetchListaCancelados() async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
