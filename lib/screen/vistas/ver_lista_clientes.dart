@@ -12,6 +12,7 @@ import 'package:cobrosapp/screen/vistas/ver_abonos_prestamo_cliente.dart';
 import 'package:cobrosapp/screen/widgets/appbar.dart';
 import 'package:cobrosapp/screen/widgets/drawemenu.dart';
 import 'package:cobrosapp/screen/widgets/spinner.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ClientesLista extends StatefulWidget {
   const ClientesLista({super.key});
@@ -168,6 +169,40 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
               },
             ),
           ),
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                const Text(
+                  'Estado de pagos: ',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _indicadorColor(
+                      color: ColoresApp.verde,
+                      texto: 'Al día',
+                    ),
+                    const SizedBox(width: 10),
+                    _indicadorColor(
+                      color: Colors.orange,
+                      texto: '3-5 días',
+                    ),
+                    const SizedBox(width: 10),
+                    _indicadorColor(
+                      color: ColoresApp.rojoLogo,
+                      texto: '+5 días',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -201,6 +236,26 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
       ),
     );
   }
+
+  Widget _indicadorColor({required Color color, required String texto}) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          texto,
+          style: const TextStyle(fontSize: 12),
+        ),
+      ],
+    );
+  }
 }
 
 class ClienteCard extends StatelessWidget {
@@ -208,10 +263,45 @@ class ClienteCard extends StatelessWidget {
   final VoidCallback onPressed;
 
   const ClienteCard({
+    super.key,
     required this.cliente,
     required this.onPressed,
-    super.key,
   });
+
+  Color _obtenerColorAvatar() {
+    if (cliente['ultimo_abono'] == null) {
+      // Si nunca ha pagado
+      return ColoresApp.rojoLogo;
+    }
+
+    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+    final hoy = DateTime.now();
+    final diasDeMora = hoy.difference(ultimoAbono).inDays;
+
+    if (diasDeMora > 5) {
+      return ColoresApp.rojoLogo; // Más de 5 días
+    } else if (diasDeMora > 3) {
+      return Colors.orange; // Entre 3 y 5 días
+    }
+    return ColoresApp.verde; // Al día
+  }
+
+  String _obtenerMensajeMora() {
+    if (cliente['ultimo_abono'] == null) {
+      return 'Sin pagos registrados';
+    }
+
+    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+    final hoy = DateTime.now();
+    final diasDeMora = hoy.difference(ultimoAbono).inDays;
+
+    if (diasDeMora == 0) {
+      return 'Al día';
+    } else if (diasDeMora == 1) {
+      return '1 día de mora';
+    }
+    return '$diasDeMora días de mora';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -219,11 +309,14 @@ class ClienteCard extends StatelessWidget {
       elevation: 3,
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: ColoresApp.verde,
-          child: Text(
-            cliente['per_nombre'][0].toString().toUpperCase(),
-            style: const TextStyle(color: ColoresApp.blanco),
+        leading: Tooltip(
+          message: _obtenerMensajeMora(),
+          child: CircleAvatar(
+            backgroundColor: _obtenerColorAvatar(),
+            child: Text(
+              cliente['per_nombre'][0].toString().toUpperCase(),
+              style: const TextStyle(color: ColoresApp.blanco),
+            ),
           ),
         ),
         title: Text(
@@ -240,6 +333,58 @@ class ClienteCard extends StatelessWidget {
                   'Cedula: ${cliente['idpersona']}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
+                GestureDetector(
+                  onTap: () async {
+                    // Limpiamos el número de teléfono de espacios y caracteres especiales
+                    final phoneNumber = cliente['per_telefono']
+                        .toString()
+                        .replaceAll(RegExp(r'[^\d+]'), '');
+
+                    final Uri phoneUri = Uri.parse('tel:+$phoneNumber');
+                    try {
+                      if (await canLaunchUrl(phoneUri)) {
+                        await launchUrl(phoneUri,
+                            mode: LaunchMode.externalApplication);
+                      } else {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'No se pudo abrir el marcador telefónico'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Teléfono: ',
+                        style: TextStyle(color: ColoresApp.negro),
+                      ),
+                      Text(
+                        '${cliente['per_telefono']}',
+                        style: const TextStyle(
+                          color: Colors.red,
+                          decoration: TextDecoration.underline,
+                          decorationColor: ColoresApp.rojoLogo,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
                 Text(
                   'Fecha del préstamo: ${cliente['pres_fecha']}',
                   style: const TextStyle(color: ColoresApp.negro),

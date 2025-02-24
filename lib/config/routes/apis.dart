@@ -22,7 +22,7 @@ class ApiConstants {
   static const String verCajaEmpleado = '$baseUrl/verCajaEmpleado.php?id=';
   static const String verRolesPersona = '$baseUrl/VerRolesPersona.php';
   static const String listaClientesConPrestamos =
-      '$baseUrl/getUsuariosConPrestamos.php?id=';
+      '$baseUrl/getUsuariosConPrestamos2.php?id=';
   static const String listaMovimientosCaja =
       '$baseUrl/listaMovimientosCaja.php?id=';
   static const String sumaMovimientosCajaIngresos =
