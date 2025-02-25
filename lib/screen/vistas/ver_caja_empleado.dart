@@ -953,7 +953,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              
                               Text(
                                 'Cantidad total: ${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
                                 style: const TextStyle(color: ColoresApp.negro),

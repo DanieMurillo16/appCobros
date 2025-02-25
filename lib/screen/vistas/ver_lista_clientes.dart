@@ -396,6 +396,7 @@ class ClienteCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                Text('Dirección: ${cliente['per_direccion']}'),
                 const Divider(),
                 Text(
                   'Fecha del préstamo: ${cliente['pres_fecha']}',
