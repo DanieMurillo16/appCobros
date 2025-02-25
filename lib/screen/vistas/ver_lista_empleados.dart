@@ -15,6 +15,7 @@ import 'package:cobrosapp/desing/coloresapp.dart';
 import 'package:cobrosapp/desing/textosapp.dart';
 import 'package:cobrosapp/screen/widgets/appbar.dart';
 import 'package:cobrosapp/screen/widgets/drawemenu.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class EmpleadosLista extends StatefulWidget {
   const EmpleadosLista({super.key});
@@ -117,9 +118,58 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
                               'Cargo: ${cliente['fk_roll'] == "2" ? "Cobrador" : cliente['fk_roll'] == '3' ? 'Supervisor' : cliente['fk_roll'] == '4' ? 'Administrador' : 'Otro'}',
                               style: const TextStyle(color: ColoresApp.negro),
                             ),
-                            Text(
-                              'Telefono: ${cliente['per_telefono']}',
-                              style: const TextStyle(color: ColoresApp.negro),
+                            GestureDetector(
+                              onTap: () async {
+                                // Limpiamos el número de teléfono de espacios y caracteres especiales
+                                final phoneNumber = cliente['per_telefono']
+                                    .toString()
+                                    .replaceAll(RegExp(r'[^\d+]'), '');
+
+                                final Uri phoneUri =
+                                    Uri.parse('tel:+57$phoneNumber');
+                                try {
+                                  if (await canLaunchUrl(phoneUri)) {
+                                    await launchUrl(phoneUri,
+                                        mode: LaunchMode.externalApplication);
+                                  } else {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'No se pudo abrir el marcador telefónico'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Error: ${e.toString()}'),
+                                        backgroundColor: Colors.red,
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Teléfono: ',
+                                    style: TextStyle(color: ColoresApp.negro),
+                                  ),
+                                  Text(
+                                    '${cliente['per_telefono']}',
+                                    style: const TextStyle(
+                                      color: Colors.red,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: ColoresApp.rojoLogo,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                             Text(
                               'Fecha de registro: ${cliente['per_fecha_creacion']}',

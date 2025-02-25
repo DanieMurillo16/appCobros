@@ -344,7 +344,7 @@ class ClienteCard extends StatelessWidget {
                         .toString()
                         .replaceAll(RegExp(r'[^\d+]'), '');
 
-                    final Uri phoneUri = Uri.parse('tel:+$phoneNumber');
+                    final Uri phoneUri = Uri.parse('tel:+57$phoneNumber');
                     try {
                       if (await canLaunchUrl(phoneUri)) {
                         await launchUrl(phoneUri,
