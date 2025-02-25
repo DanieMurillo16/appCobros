@@ -494,7 +494,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Datos del cliente:'),
+                const Text('Cliente:'),
                 Text('Identificación: ${datosPrestamo["identificacion"]}'),
                 Text(
                     'Nombre: ${datosPrestamo["nombre"]} ${datosPrestamo["apellido"]}'),

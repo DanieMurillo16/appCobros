@@ -147,7 +147,7 @@ Widget build(BuildContext context) {
                         ),
                       ),
                       title: Text(
-                        '${cliente['per_nombre']} ${cliente['per_apellido']}',
+                        '${cliente['per_nombre'].toString().toUpperCase()} ${cliente['per_apellido'].toString().toUpperCase()}',
                         style: const TextStyle(color: ColoresApp.negro),
                       ),
                       subtitle: Column(
@@ -164,6 +164,10 @@ Widget build(BuildContext context) {
                           ),
                           Text(
                             'Valor Cuota: ${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
+                            style: const TextStyle(color: ColoresApp.negro),
+                          ),
+                          Text(
+                            'Valor seguro: ${FormatoMiles().formatearCantidad(cliente['pres_seguro'])}',
                             style: const TextStyle(color: ColoresApp.negro),
                           ),
                           const Divider(),

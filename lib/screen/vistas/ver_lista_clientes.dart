@@ -314,7 +314,7 @@ class ClienteCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: ExpansionTile(
         leading: Tooltip(
-          message: _obtenerMensajeMora(),
+          message: 'Estado de pagos',
           child: CircleAvatar(
             backgroundColor: _obtenerColorAvatar(),
             child: Text(
@@ -377,6 +377,14 @@ class ClienteCard extends StatelessWidget {
                         'Teléfono: ',
                         style: TextStyle(color: ColoresApp.negro),
                       ),
+                       // Espacio entre el número y el icono
+                      const Icon(
+                        Icons.phone,
+                        size: 16,
+                        color: ColoresApp.rojoLogo,
+                      ),
+                      const SizedBox(
+                          width: 4),
                       Text(
                         '${cliente['per_telefono']}',
                         style: const TextStyle(
@@ -403,6 +411,11 @@ class ClienteCard extends StatelessWidget {
                 ),
                 Text(
                   'Restante: \$${FormatoMiles().formatearCantidad(((int.tryParse(cliente['pres_cantidadTotal']?.toString() ?? '0') ?? 0) - (int.tryParse(cliente['total_abonos']?.toString() ?? '0') ?? 0)).toString())}',
+                  style: const TextStyle(color: ColoresApp.negro),
+                ),
+                const Divider(),
+                Text(
+                  _obtenerMensajeMora(),
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Align(

@@ -55,12 +55,22 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
             return const Center(child: Text('No hay abonos en el momento.'));
           } else {
             final abonos = snapshot.data!;
+            double sumaDinero = abonos.fold(0.0, (sum, cliente) {
+            return sum +
+                (double.tryParse(cliente['abo_cantidad'].toString()) ?? 0.0);
+          });
             return Column(
               children: [
                 const SizedBox(height: 20),
                 const Text(
                     "Estos son los abonos que se han hecho del prestamo"),
                 const SizedBox(height: 20),
+                Text(
+                    "Total recogido: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}",
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 5),
+                const Divider(),
                 Expanded(
                   child: ListView.builder(
                     itemCount: abonos.length,

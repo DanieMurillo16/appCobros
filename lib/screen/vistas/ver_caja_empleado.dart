@@ -24,6 +24,11 @@ import 'package:sizer/sizer.dart';
 
 import 'caja/car_movimientos.dart';
 
+// Primero, agrega esta variable al inicio de la clase _CajaCuentasState
+enum BotonActivo { clientes, gastos, prestamos, cancelados }
+
+BotonActivo _botonActivo = BotonActivo.clientes;
+
 class CajaCuentas extends StatefulWidget {
   const CajaCuentas({super.key});
 
@@ -282,6 +287,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     Expanded(
                       flex: 2,
                       child: IconButton(
+                        color: ColoresApp.rojo,
                         icon: const Icon(Icons.search),
                         onPressed: () {
                           setState(() {
@@ -341,7 +347,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       alignment: Alignment.center,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: SizedBox(
-        height: 5.h, // Altura fija para los botones
+        height: 5.h,
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -350,77 +356,93 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: ColoresApp.grisClarito,
+                  backgroundColor: _botonActivo == BotonActivo.clientes
+                      ? ColoresApp.rojo
+                      : ColoresApp.verde,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
                 onPressed: () {
                   setState(() {
+                    _botonActivo = BotonActivo.clientes;
                     _mostrarClientes = true;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = false;
                   });
                   _buscarAbonos();
                 },
-                child: const Text("Clientes"),
+                child: const Text("Clientes",
+                    style: TextStyle(color: ColoresApp.blanco)),
               ),
               const SizedBox(width: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: ColoresApp.grisClarito,
+                  backgroundColor: _botonActivo == BotonActivo.gastos
+                      ? ColoresApp.rojo
+                      : ColoresApp.verde,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
                 onPressed: () {
                   setState(() {
+                    _botonActivo = BotonActivo.gastos;
                     _mostrarClientes = false;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = false;
                   });
                   _buscarAbonos();
                 },
-                child: const Text("Gastos"),
+                child: const Text("Gastos",
+                    style: TextStyle(color: ColoresApp.blanco)),
               ),
               const SizedBox(width: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: ColoresApp.grisClarito,
+                  backgroundColor: _botonActivo == BotonActivo.prestamos
+                      ? ColoresApp.rojo
+                      : ColoresApp.verde,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
                 onPressed: () {
                   setState(() {
+                    _botonActivo = BotonActivo.prestamos;
                     _mostrarClientes = false;
                     _mostrarPrestamos = true;
                     _mostrarCancelados = false;
                   });
                   _buscarAbonos();
                 },
-                child: const Text("Prestamos"),
+                child: const Text("Prestamos",
+                    style: TextStyle(color: ColoresApp.blanco)),
               ),
               const SizedBox(width: 10),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
-                  backgroundColor: ColoresApp.grisClarito,
+                  backgroundColor: _botonActivo == BotonActivo.cancelados
+                      ? ColoresApp.rojo
+                      : ColoresApp.verde,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
                 onPressed: () {
                   setState(() {
+                    _botonActivo = BotonActivo.cancelados;
                     _mostrarClientes = false;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = true;
                   });
                   _buscarAbonos();
                 },
-                child: const Text("Cancelados"),
+                child: const Text("Cancelados",
+                    style: TextStyle(color: ColoresApp.blanco)),
               ),
             ],
           ),
@@ -641,6 +663,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                                   ),
                                 ],
                               ),
+                              const Divider(),
                             ],
                           ),
                         ),
@@ -688,10 +711,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                                             'Monto Abonado: $montoAbonadoFormateado'),
                                         Text(
                                             'Estado Abono: ${abono['estado_abono']}'),
-                                        Text(
-                                            'Fecha Préstamo: ${abono['fecha_prestamo']}'),
-                                        Text(
-                                            'Fecha Abono: ${abono['fecha_abono'] ?? 'N/A'}'),
                                       ],
                                     ),
                                   ),
@@ -840,10 +859,19 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
         } else {
           final clientes = snapshot.data!;
           int totalPrestamos = clientes.length;
-          // Calcular la suma de los seguros
+          int conSeguro = 0;
+          int sinSeguro = 0;
+
+// Calcular las sumas y contar préstamos con/sin seguro
           double sumaSeguros = clientes.fold(0.0, (sum, cliente) {
-            return sum +
-                (double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0);
+            double seguro =
+                double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+            if (seguro > 0) {
+              conSeguro++;
+            } else {
+              sinSeguro++;
+            }
+            return sum + seguro;
           });
           double sumaDinero = clientes.fold(0.0, (sum, cliente) {
             return sum +
@@ -857,21 +885,48 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Text(
-                      'Total prestamos: $totalPrestamos',
+                      'Prestamos: $totalPrestamos',
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     Text(
                       'Prestado: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Con seguro: $conSeguro',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                       const Text(' | ',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          )),
+                        Text(
+                          'Sin seguro: $sinSeguro',
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                     Text(
                       'Seguros: ${FormatoMiles().formatearCantidad(sumaSeguros.toString())}',
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: 5),
                   ],
                 ),
               ),
@@ -954,6 +1009,10 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
             return sum +
                 (double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0);
           });
+          double totalsumaAbonos = clientes.fold(0.0, (sum, cliente) {
+            return sum +
+                (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
+          });
           double sumaDinero = clientes.fold(0.0, (sum, cliente) {
             return sum +
                 (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
@@ -968,9 +1027,13 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     Text(
                       'Total Cancelados: $totalPrestamos',
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
+                          fontSize: 15, fontWeight: FontWeight.bold),
                     ),
-                    const SizedBox(height: 5),
+                    Text(
+                      'Suma: ${FormatoMiles().formatearCantidad(totalsumaAbonos.toString())}',
+                      style: const TextStyle(
+                          fontSize: 15, fontWeight: FontWeight.bold),
+                    ),
                   ],
                 ),
               ),
