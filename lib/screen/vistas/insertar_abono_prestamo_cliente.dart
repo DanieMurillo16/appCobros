@@ -404,7 +404,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                                       0.0;
 
                                   double valorPrestamo = double.tryParse(
-                                          prestamo['pres_cantidad']
+                                          prestamo['pres_cantidadTotal']
                                               .toString()
                                               .replaceAll(".", "")) ??
                                       0.0;

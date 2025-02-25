@@ -334,7 +334,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
                               "-$valor"; // Convertir a negativo si es un gasto
                         }
                         if (_pref.cargo == '4') {
-                          if (formData['tipoCaja'] == "Caja general") {
+                          if (formData['tipoCaja'] == "Caja General") {
                             final data = await Databaseservices()
                                 .cerrarCajaCobrador(formData['empleado'], valor,
                                     descripcion:

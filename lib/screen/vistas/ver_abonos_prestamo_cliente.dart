@@ -20,9 +20,8 @@ class Clientepagoabonos extends StatefulWidget {
 }
 
 class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
-  
   final _pref = PreferenciasUsuario();
-  
+
   Future<List<dynamic>> consultaAbonos() async {
     var url =
         Uri.parse(ApiConstants.verAbonoPrestamoEspecifico + widget.idPrestamo);
@@ -30,7 +29,8 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      return data['abonos'] ?? []; // Extraer solo la lista de abonos
     } else {
       throw Exception('Error al cargar los abonos');
     }
@@ -58,7 +58,8 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
             return Column(
               children: [
                 const SizedBox(height: 20),
-                const Text("Estos son los abonos que se han hecho del prestamo"),
+                const Text(
+                    "Estos son los abonos que se han hecho del prestamo"),
                 const SizedBox(height: 20),
                 Expanded(
                   child: ListView.builder(
@@ -69,38 +70,38 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
                         margin: const EdgeInsets.symmetric(
                             vertical: 8, horizontal: 16),
                         child: ListTile(
-                        leading: CircleAvatar(
-                          foregroundColor: ColoresApp.blanco,
-                          backgroundColor: ColoresApp.verde,
-                          child: Text((index + 1).toString()),
+                          leading: CircleAvatar(
+                            foregroundColor: ColoresApp.blanco,
+                            backgroundColor: ColoresApp.verde,
+                            child: Text((index + 1).toString()),
+                          ),
+                          title: Text(
+                              'Cantidad: \$${FormatoMiles().formatearCantidad(abono['abo_cantidad'])}'),
+                          subtitle: Text('Fecha: ${abono['abo_fecha']}'),
+                          trailing: _pref.cargo == "4"
+                              ? IconButton(
+                                  onPressed: () async {
+                                    final data = await Databaseservices()
+                                        .eliminarAbono(abono['idabonos']);
+                                    if (data) {
+                                      SmartDialog.showToast(
+                                          "Abono eliminado con éxito");
+                                      // Refrescar la vista
+                                      setState(() {
+                                        consultaAbonos();
+                                      });
+                                    } else {
+                                      SmartDialog.showToast(
+                                          "No se pudo eliminar el abono");
+                                    }
+                                  },
+                                  icon: const Icon(
+                                    Icons.delete,
+                                    color: ColoresApp.rojoLogo,
+                                  ),
+                                )
+                              : null,
                         ),
-                        title: Text(
-                            'Cantidad: \$${FormatoMiles().formatearCantidad(abono['abo_cantidad'])}'),
-                        subtitle: Text('Fecha: ${abono['abo_fecha']}'),
-                        trailing: _pref.cargo == "4"
-                            ? IconButton(
-                                onPressed: () async {
-                                  final data = await Databaseservices()
-                                      .eliminarAbono(abono['idabonos']);
-                                  if (data) {
-                                    SmartDialog.showToast(
-                                        "Abono eliminado con éxito");
-                                    // Refrescar la vista
-                                    setState(() {
-                                      consultaAbonos();
-                                    });
-                                  } else {
-                                    SmartDialog.showToast(
-                                        "No se pudo eliminar el abono");
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: ColoresApp.rojoLogo,
-                                ),
-                              )
-                            : null,
-                      ),
                       );
                     },
                   ),
