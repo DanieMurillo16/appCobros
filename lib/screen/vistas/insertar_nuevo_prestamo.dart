@@ -53,6 +53,14 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
   bool isFormatting = false;
   bool _isLoading = false;
   int resultado = 0;
+  String? _rolSeleccionado;
+
+
+  final List<String> _tiposMovimiento = [
+    "Diario",
+    "Semanal",
+    "Quincenal",
+  ];
 
   @override
   void initState() {
@@ -243,6 +251,48 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           const Divider(),
           const Text("Datos del prestamo",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 13),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 17),
+            child: FormBuilderDropdown<String>(
+              name: 'tipoPrestamo',
+              focusColor: ColoresApp.rojo,
+              decoration: InputDecoration(
+                floatingLabelStyle: const TextStyle(color: ColoresApp.rojo),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(
+                    color: ColoresApp.rojo,
+                    width: 2.0,
+                  ),
+                ),
+                labelText: 'Tipo de Prestamo',
+                border: const OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: ColoresApp.rojo,
+                  ),
+                ),
+              ),
+              validator: FormBuilderValidators.compose([
+                FormBuilderValidators.required(),
+              ]),
+              items: _tiposMovimiento
+                  .map(
+                    (tipo) => DropdownMenuItem(
+                      value: tipo,
+                      child: Text(tipo),
+                    ),
+                  )
+                  .toList(),
+                  onChanged: (value) {
+                    setState(() {
+          _rolSeleccionado = value;
+                      
+                    });
+                  },
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -352,6 +402,8 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
                   "Direccion": datosFormulario["Direccion"],
                   "FechaCreacion": Databaseservices().obtenerFechaActual(),
                   'Fecha': Databaseservices().obtenerFechaActual(),
+                  //-------------------- Datos del prestamo
+                  'tipoPrestamo': _rolSeleccionado.toString(),
                   'Monto':
                       datosFormulario['Monto'].toString().replaceAll(".", ""),
                   'Monto total': datosFormulario['Monto total']
@@ -374,7 +426,6 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
               }
             },
       icon: const Icon(Icons.add),
-      
     );
   }
 
@@ -443,7 +494,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
-                const Text('Datos del cliente'),
+                const Text('Datos del cliente:'),
                 Text('Identificación: ${datosPrestamo["identificacion"]}'),
                 Text(
                     'Nombre: ${datosPrestamo["nombre"]} ${datosPrestamo["apellido"]}'),
@@ -451,6 +502,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
                 Text('Dirección: ${datosPrestamo["Direccion"]}'),
                 const Divider(),
                 const Text('Préstamo:'),
+                Text('Tipo de pago: ${datosPrestamo["tipoPrestamo"]}'),
                 Text('Fecha: ${datosPrestamo["Fecha"]}'),
                 Text('Cantidad: \$$montoFormatted'),
                 Text('Cantidad con %: \$$montoTotalFormatted'),
