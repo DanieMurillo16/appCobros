@@ -169,40 +169,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
               },
             ),
           ),
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const Text(
-                  'Estado de pagos: ',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _indicadorColor(
-                      color: ColoresApp.verde,
-                      texto: 'Al día',
-                    ),
-                    const SizedBox(width: 10),
-                    _indicadorColor(
-                      color: Colors.orange,
-                      texto: '3-5 días',
-                    ),
-                    const SizedBox(width: 10),
-                    _indicadorColor(
-                      color: ColoresApp.rojoLogo,
-                      texto: '+5 días',
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+          informacionPagos(),
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -231,6 +198,43 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
                       );
                     },
                   ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget informacionPagos() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            'Estado de pagos de clientes: ',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _indicadorColor(
+                color: ColoresApp.verde,
+                texto: 'Al día',
+              ),
+              const SizedBox(width: 10),
+              _indicadorColor(
+                color: Colors.orange,
+                texto: '3-5 días',
+              ),
+              const SizedBox(width: 10),
+              _indicadorColor(
+                color: ColoresApp.rojoLogo,
+                texto: '+5 días',
+              ),
+            ],
           ),
         ],
       ),
