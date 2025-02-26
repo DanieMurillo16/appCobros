@@ -40,7 +40,7 @@ class ApiConstants {
   static const String insertarnuevoPrestamo =
       '$baseUrl/InsertarNuevoPrestamo.php';
   static const String insertarnuevoPrestamo2 =
-      '$baseUrl/InsertarNuevoPrestamo2.php';
+      '$baseUrl/InsertarNuevoPrestamo3.php';
   static const String insertarnuevoEmpleado =
       '$baseUrl/InsertarNuevaPersona.php';
   static const String insertarMovimientoCaja =

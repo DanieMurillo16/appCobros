@@ -41,7 +41,6 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     }
     final lowerQuery = query.toLowerCase();
     return _clientes.where((cliente) {
-      // Construye el nombre completo a partir de los campos que tengas
       final nombreCompleto =
           '${cliente["per_nombre"] ?? ""} ${cliente["per_apellido"] ?? ""}'
               .toLowerCase();
@@ -71,25 +70,30 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   }
 
   Future<void> _loadClientes({String? empleadoId}) async {
+    if (!mounted) return;
+
     setState(() {
       _isLoading = true;
     });
+
     try {
-      // Si tenemos un empleadoId, cargamos los clientes de ese empleado
-      // Caso contrario, cargamos los clientes del usuario actual
       final newClientes = empleadoId != null && empleadoId.isNotEmpty
           ? await _dataBaseServices.fetchClientes(empleadoId)
           : await _dataBaseServices.fetchClientes(_pref.idUser);
 
-      setState(() {
-        _clientes = newClientes;
-      });
+      if (mounted) {
+        setState(() {
+          _clientes = newClientes;
+        });
+      }
     } catch (e) {
       debugPrint("Error al cargar clientes: $e");
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -104,11 +108,17 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
 
   // Carga de empleados para dropdown (solo aplica si cargo=4)
   Future<void> _loadEmpleados() async {
+    if (!mounted) {
+      return; // Verificar si el widget está montado antes de continuar
+    }
     try {
       final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo);
-      setState(() {
-        _roles = empleados;
-      });
+      if (mounted) {
+        // Verificar nuevamente antes de llamar setState
+        setState(() {
+          _roles = empleados;
+        });
+      }
     } catch (e) {
       debugPrint("Error al cargar empleados: $e");
     }
@@ -274,20 +284,43 @@ class ClienteCard extends StatelessWidget {
 
   Color _obtenerColorAvatar() {
     if (cliente['ultimo_abono'] == null) {
-      // Si nunca ha pagado
-      return ColoresApp.rojoLogo;
+      return ColoresApp.rojoLogo; // Si nunca ha pagado
     }
 
     final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
     final hoy = DateTime.now();
-    final diasDeMora = hoy.difference(ultimoAbono).inDays;
+    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
+    final tipoPrestamo =
+        int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
 
-    if (diasDeMora > 5) {
-      return ColoresApp.rojoLogo; // Más de 5 días
-    } else if (diasDeMora > 3) {
-      return Colors.orange; // Entre 3 y 5 días
+    // Definir límites según tipo de préstamo
+    int limiteModerado = 0;
+    int limiteAlto = 0;
+
+    switch (tipoPrestamo) {
+      case 1: // Diario
+        limiteModerado = 3;
+        limiteAlto = 5;
+        break;
+      case 2: // Semanal
+        limiteModerado = 8;
+        limiteAlto = 10;
+        break;
+      case 3: // Quincenal
+        limiteModerado = 15;
+        limiteAlto = 17;
+        break;
+      default:
+        limiteModerado = 3;
+        limiteAlto = 5;
     }
-    return ColoresApp.verde; // Al día
+
+    if (diasTranscurridos > limiteAlto) {
+      return ColoresApp.rojoLogo;
+    } else if (diasTranscurridos > limiteModerado) {
+      return Colors.orange;
+    }
+    return ColoresApp.verde;
   }
 
   String _obtenerMensajeMora() {
@@ -297,14 +330,45 @@ class ClienteCard extends StatelessWidget {
 
     final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
     final hoy = DateTime.now();
-    final diasDeMora = hoy.difference(ultimoAbono).inDays;
+    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
+    final tipoPrestamo =
+        int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
 
-    if (diasDeMora == 0) {
-      return 'Al día';
-    } else if (diasDeMora == 1) {
-      return '1 día de mora';
+    // Determinar el período de pago según el tipo
+    String periodoPago = '';
+    int diasLimite = 0;
+
+    switch (tipoPrestamo) {
+      case 1:
+        periodoPago = 'diario';
+        diasLimite = 1;
+        break;
+      case 2:
+        periodoPago = 'semanal';
+        diasLimite = 8;
+        break;
+      case 3:
+        periodoPago = 'quincenal';
+        diasLimite = 15;
+        break;
+      default:
+        periodoPago = 'diario';
+        diasLimite = 1;
     }
-    return '$diasDeMora días de mora';
+
+    if (diasTranscurridos <= 0) {
+      return 'Al día (pago $periodoPago)';
+    }
+
+    if (diasTranscurridos < diasLimite) {
+      return 'Faltan ${diasLimite - diasTranscurridos} días para el próximo pago ($periodoPago)';
+    }
+
+    final diasMora = diasTranscurridos - diasLimite;
+    if (diasMora == 1) {
+      return '1 día de mora (pago $periodoPago)';
+    }
+    return '$diasMora días de mora (pago $periodoPago)';
   }
 
   @override
@@ -377,14 +441,13 @@ class ClienteCard extends StatelessWidget {
                         'Teléfono: ',
                         style: TextStyle(color: ColoresApp.negro),
                       ),
-                       // Espacio entre el número y el icono
+                      // Espacio entre el número y el icono
                       const Icon(
                         Icons.phone,
                         size: 16,
                         color: ColoresApp.rojoLogo,
                       ),
-                      const SizedBox(
-                          width: 4),
+                      const SizedBox(width: 4),
                       Text(
                         '${cliente['per_telefono']}',
                         style: const TextStyle(

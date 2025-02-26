@@ -154,8 +154,9 @@ Widget build(BuildContext context) {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Divider(),
+                          
                           Text(
-                            'Fecha de prestamo: ${cliente['pres_fecha']}',
+                            'Tipo de pago: ${cliente['tpp_nombre']}',
                             style: const TextStyle(color: ColoresApp.negro),
                           ),
                           Text(

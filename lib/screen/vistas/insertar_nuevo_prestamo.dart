@@ -55,12 +55,11 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
   int resultado = 0;
   String? _rolSeleccionado;
 
-
-  final List<String> _tiposMovimiento = [
-    "Diario",
-    "Semanal",
-    "Quincenal",
-  ];
+  final Map<String, String> _tipoPrestamoValores = {
+    "Diario": "1",
+    "Semanal": "2",
+    "Quincenal": "3",
+  };
 
   @override
   void initState() {
@@ -276,7 +275,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
               validator: FormBuilderValidators.compose([
                 FormBuilderValidators.required(),
               ]),
-              items: _tiposMovimiento
+              items: _tipoPrestamoValores.keys
                   .map(
                     (tipo) => DropdownMenuItem(
                       value: tipo,
@@ -284,12 +283,11 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
                     ),
                   )
                   .toList(),
-                  onChanged: (value) {
-                    setState(() {
-          _rolSeleccionado = value;
-                      
-                    });
-                  },
+              onChanged: (value) {
+                setState(() {
+                  _rolSeleccionado = value;
+                });
+              },
             ),
           ),
           const SizedBox(height: 12),
@@ -433,6 +431,8 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
     // Ajusta la URL a tu dominio/IP y archivo PHP
     var url = Uri.parse(ApiConstants.insertarnuevoPrestamo2);
     var cobro = PreferenciasUsuario().cobro.toString();
+
+    String tipoPrestamo = _tipoPrestamoValores[datos['tipoPrestamo']] ?? "1";
     // Realiza la petición POST con los datos
     final response = await http.post(
       url,
@@ -444,8 +444,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
         'per_gen': "No definido",
         'per_tel': datos['Telefono'],
         'per_dir': datos['Direccion'],
-        'per_fecha_creacion': datos['FechaCreacion'],
-        'fk_roll': "1",
+        'fk_rol': "1",
         'fk_cobro': cobro,
         'fk_em': _pref.idUser,
         //------------------- Inser prestamo
@@ -455,6 +454,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
         'cu': datos['Cuotas'],
         'int': datos['Interes'],
         'seg': datos['seguro'],
+        'tipoPago': tipoPrestamo,
       },
     );
 
