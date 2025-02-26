@@ -37,15 +37,26 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
 
   List<Map<String, dynamic>> _filtrarClientes(String query) {
     if (query.isEmpty) {
-      return _clientes;
+      // Ordenar por el campo 'orden' si existe
+      final clientesOrdenados = List<Map<String, dynamic>>.from(_clientes);
+      clientesOrdenados.sort((a, b) => (a['orden'] ?? double.infinity)
+          .compareTo(b['orden'] ?? double.infinity));
+      return clientesOrdenados;
     }
+
     final lowerQuery = query.toLowerCase();
-    return _clientes.where((cliente) {
+    final clientesFiltrados = _clientes.where((cliente) {
       final nombreCompleto =
           '${cliente["per_nombre"] ?? ""} ${cliente["per_apellido"] ?? ""}'
               .toLowerCase();
       return nombreCompleto.contains(lowerQuery);
     }).toList();
+
+    // Mantener el orden incluso en la búsqueda
+    clientesFiltrados.sort((a, b) => (a['orden'] ?? double.infinity)
+        .compareTo(b['orden'] ?? double.infinity));
+
+    return clientesFiltrados;
   }
 
   @override
@@ -77,14 +88,60 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     });
 
     try {
+      // Primero obtener los clientes
       final newClientes = empleadoId != null && empleadoId.isNotEmpty
           ? await _dataBaseServices.fetchClientes(empleadoId)
           : await _dataBaseServices.fetchClientes(_pref.idUser);
 
-      if (mounted) {
-        setState(() {
-          _clientes = newClientes;
-        });
+      // Obtener la ruta para el empleado
+      final rutaBD =
+          await _dataBaseServices.obtenerRuta(empleadoId ?? _pref.idUser);
+
+      if (rutaBD.isNotEmpty) {
+        // Crear un mapa de clientes basado en idpersona y idprestamos
+        final Map<String, Map<String, dynamic>> clientesMap = {
+          for (var cliente in newClientes)
+            '${cliente['idpersona']}_${cliente['idprestamos']}': cliente
+        };
+
+        List<Map<String, dynamic>> clientesOrdenados = [];
+
+        // Ordenar clientes según la ruta
+        for (var rutaItem in rutaBD) {
+          final idPersonaPrestamo =
+              '${rutaItem['fk_cliente']}_${rutaItem['fk_prestamo']}';
+          if (clientesMap.containsKey(idPersonaPrestamo)) {
+            final cliente = clientesMap[idPersonaPrestamo];
+            if (cliente != null) {
+              clientesOrdenados.add({
+                ...cliente,
+                'orden': rutaItem['orden'],
+              });
+              clientesMap.remove(idPersonaPrestamo);
+            }
+          }
+        }
+
+        // Agregar los clientes que no están en la ruta al final
+        clientesOrdenados.addAll(clientesMap.values.map((cliente) => {
+              ...cliente,
+              'orden': clientesOrdenados.length,
+            }));
+
+        if (mounted) {
+          setState(() {
+            _clientes = clientesOrdenados;
+            _isLoading = false;
+          });
+        }
+      } else {
+        // Si no hay ruta, mantener el orden original
+        if (mounted) {
+          setState(() {
+            _clientes = newClientes;
+            _isLoading = false;
+          });
+        }
       }
     } catch (e) {
       debugPrint("Error al cargar clientes: $e");
