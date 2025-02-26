@@ -42,6 +42,8 @@ class _VerCajaGeneralState extends BaseScreen<VerCajaGeneral> {
   }
 
   Future<List<Map<String, dynamic>>> _loadDatosCajaGeneral() async {
+
+    if (!mounted) return[];
     try {
       return await _dataBaseServices.listaCajaCobradores();
     } catch (e) {

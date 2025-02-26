@@ -23,6 +23,7 @@ class _ClientepagoabonosState extends BaseScreen<Clientepagoabonos> {
   final _pref = PreferenciasUsuario();
 
   Future<List<dynamic>> consultaAbonos() async {
+    if (!mounted) return[];
     var url =
         Uri.parse(ApiConstants.verAbonoPrestamoEspecifico + widget.idPrestamo);
 

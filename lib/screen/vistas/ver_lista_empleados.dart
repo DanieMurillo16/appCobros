@@ -28,6 +28,7 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
   final _pref = PreferenciasUsuario();
 
   Future<List<dynamic>> fetchClientes() async {
+    if (!mounted) return[];
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       // Lanza una excepción si no hay internet

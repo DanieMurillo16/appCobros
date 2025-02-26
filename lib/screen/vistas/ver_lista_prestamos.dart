@@ -36,6 +36,7 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
     if (!conectado) {
       throw Exception('No tienes conexion a internet');
     }
+    if (!mounted) return [];
     final idConsultado =
         (_pref.cargo == '4' || _pref.cargo == '3') && _rolSeleccionado != null
             ? _rolSeleccionado!
@@ -65,6 +66,7 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
   }
 
   Future<void> _loadEmpleados() async {
+    if (!mounted) return;
     try {
       final empleados = await Databaseservices().fetchEmpleados(_pref.cargo);
       setState(() {

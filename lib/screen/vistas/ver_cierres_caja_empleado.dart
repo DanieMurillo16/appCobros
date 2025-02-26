@@ -18,6 +18,7 @@ class HistorialCierres extends StatefulWidget {
 
 class _HistorialCierresState extends BaseScreen<HistorialCierres> {
   Future<List<dynamic>> consultarCierresCaja() async {
+    if (!mounted) return[];
     var url = Uri.parse(ApiConstants.historialCierres + widget.idPersona);
 
     final response = await http.get(url);

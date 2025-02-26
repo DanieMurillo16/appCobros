@@ -69,6 +69,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Future<void> _loadEmpleados() async {
+    if (!mounted) return;
     try {
       final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo);
       setState(() {
@@ -146,6 +147,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
 
   Future<String> _calcularTotalRecaudado(BuildContext context) async {
     String dateValue;
+    if (!mounted) return '';
 
     if (_pref.cargo == "4") {
       // Cargo 4: Toma la fecha del formulario
@@ -743,6 +745,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
+    if (!mounted) return[];
     // Determina el ID y la fecha a usar
     String idConsultado;
     String fechaSeleccionada;
@@ -794,6 +797,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
+    if (!mounted) return[];
     // Determina el ID y la fecha a usar
     String idConsultado;
     String fechaSeleccionada;
