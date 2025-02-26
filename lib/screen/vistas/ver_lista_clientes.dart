@@ -310,6 +310,11 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
                 color: ColoresApp.rojoLogo,
                 texto: '+5 días',
               ),
+              const SizedBox(width: 10),
+              _indicadorColor(
+                color: ColoresApp.morado,
+                texto: 'Cliente nuevo',
+              ),
             ],
           ),
         ],
@@ -349,16 +354,26 @@ class ClienteCard extends StatelessWidget {
   });
 
   Color _obtenerColorAvatar() {
-    if (cliente['ultimo_abono'] == null) {
-      return ColoresApp.rojoLogo; // Si nunca ha pagado
-    }
-
-    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+if (cliente['ultimo_abono'] == null) {
+    // Verificar si es un préstamo nuevo (de hoy)
+    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
-    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
-    final tipoPrestamo =
-        int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
+    
+    // Comparar solo fecha sin hora
+    final esMismoDia = fechaPrestamo.year == hoy.year && 
+                      fechaPrestamo.month == hoy.month && 
+                      fechaPrestamo.day == hoy.day;
+    
+    if (esMismoDia) {
+      return Colors.purple; // Préstamo nuevo de hoy
+    }
+    return ColoresApp.rojoLogo; // Préstamo sin pagos y no es de hoy
+  }
 
+  final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+  final hoy = DateTime.now();
+  final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
+  final tipoPrestamo = int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
     // Definir límites según tipo de préstamo
     int limiteModerado = 0;
     int limiteAlto = 0;
@@ -391,8 +406,18 @@ class ClienteCard extends StatelessWidget {
 
   String _obtenerMensajeMora() {
     if (cliente['ultimo_abono'] == null) {
-      return 'Sin pagos registrados';
+    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
+    final hoy = DateTime.now();
+    
+    final esMismoDia = fechaPrestamo.year == hoy.year && 
+                      fechaPrestamo.month == hoy.month && 
+                      fechaPrestamo.day == hoy.day;
+    
+    if (esMismoDia) {
+      return 'Préstamo nuevo de hoy';
     }
+    return 'Sin pagos registrados (desde ${cliente['pres_fecha']})';
+  }
 
     final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
     final hoy = DateTime.now();

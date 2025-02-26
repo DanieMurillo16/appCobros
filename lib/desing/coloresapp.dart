@@ -16,4 +16,5 @@ class ColoresApp {
   static const Color verdeOscuro = Color.fromRGBO(35, 159, 87, 0.8);
   static const Color verde = Color.fromRGBO(6, 161, 71, 1);
   static const Color verdeLimon = Color.fromRGBO(35, 159, 87, 1);
+  static const Color morado = Color.fromRGBO(102, 0, 81617, 1);
 }
