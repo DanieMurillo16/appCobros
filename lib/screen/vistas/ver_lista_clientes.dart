@@ -239,7 +239,16 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
           informacionPagos(),
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Cargando clientes...'),
+                      ],
+                    ),
+                  )
                 : ListView.builder(
                     controller: _scrollController,
                     itemCount:
@@ -523,11 +532,15 @@ class ClienteCard extends StatelessWidget {
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(
-                  'Cantidad total: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                  'Cuota: \$${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(
-                  'Total abonos: \$${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
+                  'Valor: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                  style: const TextStyle(color: ColoresApp.negro),
+                ),
+                Text(
+                  'Abonos: \$${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(
