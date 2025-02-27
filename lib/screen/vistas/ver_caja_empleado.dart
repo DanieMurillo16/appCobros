@@ -25,9 +25,7 @@ import 'package:sizer/sizer.dart';
 import 'caja/car_movimientos.dart';
 
 // Primero, agrega esta variable al inicio de la clase _CajaCuentasState
-enum BotonActivo { clientes, gastos, prestamos, cancelados }
-
-BotonActivo _botonActivo = BotonActivo.clientes;
+enum BotonActivo { ninguno, clientes, gastos, prestamos, cancelados }
 
 class CajaCuentas extends StatefulWidget {
   const CajaCuentas({super.key});
@@ -37,11 +35,12 @@ class CajaCuentas extends StatefulWidget {
 }
 
 class _CajaCuentasState extends BaseScreen<CajaCuentas> {
+  BotonActivo _botonActivo = BotonActivo.ninguno;
+
   final _pref = PreferenciasUsuario();
   final _formKey = GlobalKey<FormBuilderState>();
   final _dataBaseServices = Databaseservices();
   final TextEditingController fecha = TextEditingController();
-  late Future<List<Map<String, dynamic>>> _futureMovimientos;
   Future<String>? _futureCaja;
   bool _mostrarClientes = true;
   bool _mostrarCancelados = false;
@@ -50,6 +49,79 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   List<Map<String, dynamic>> _roles = [];
   String? _rolSeleccionado;
   bool _cargarAbonos = false;
+  bool _isLoading = false;
+
+  // Variables para almacenar datos precargados
+  List<Map<String, dynamic>> _datosClientes = [];
+  List<dynamic> _datosPrestamos = [];
+  List<dynamic> _datosCancelados = [];
+  List<Map<String, dynamic>> _datosMovimientos = [];
+
+  // Método para cargar todos los datos
+  Future<void> _cargarTodosDatos() async {
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final bool conectado = await Conexioninternet().isConnected();
+      if (!conectado) {
+        throw Exception('No hay conexión a internet');
+      }
+
+      await Future.wait([
+        _cargarDatosConRetry(() => _consultarListadoReporteAbonosClientes()),
+        _cargarDatosConRetry(() => fetchListaPrestamos()),
+        _cargarDatosConRetry(() => fetchListaCancelados()),
+        _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
+              _rolSeleccionado ?? _pref.idUser,
+              fecha.text,
+            )),
+      ]).then((futures) {
+        if (mounted) {
+          setState(() {
+            _datosClientes = futures[0] as List<Map<String, dynamic>>;
+            _datosPrestamos = futures[1];
+            _datosCancelados = futures[2];
+            _datosMovimientos = futures[3] as List<Map<String, dynamic>>;
+          });
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: _cargarTodosDatos,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+// Función auxiliar para reintentos
+  Future<T> _cargarDatosConRetry<T>(Future<T> Function() callback) async {
+    for (int i = 0; i < 3; i++) {
+      try {
+        return await callback();
+      } catch (e) {
+        if (i == 2) rethrow;
+        await Future.delayed(const Duration(seconds: 1));
+      }
+    }
+    throw Exception('Error después de 3 intentos');
+  }
 
   @override
   void initState() {
@@ -59,12 +131,13 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       _loadEmpleados();
       _futureCaja = Future.value("0");
     } else {
-      // Otros cargos => sin Spinner, fecha del día
+      // Otros cargos => sin Spinner, cargar datos del día
       fecha.text = _dataBaseServices.obtenerFechaActual();
       _futureCaja = _calcularTotalRecaudado(context);
-      _futureMovimientos = _dataBaseServices.listaMovimientoscaja2(
-          _pref.idUser, _dataBaseServices.obtenerFechaActual());
       _cargarAbonos = true;
+      // Cargar datos iniciales
+      _cargarTodosDatos();
+      _botonActivo = BotonActivo.clientes;
     }
   }
 
@@ -105,44 +178,9 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   void _buscarAbonos() {
-    if (_pref.cargo == '3') {
-      final fechaActual = _dataBaseServices.obtenerFechaActual();
-      setState(() {
-        _cargarAbonos = true;
-        _futureMovimientos = _mostrarClientes
-            ? _dataBaseServices.consultarListadoReporteAbonosClientes(
-                _rolSeleccionado ?? _pref.idUser, fechaActual)
-            : _dataBaseServices.listaMovimientoscaja2(
-                _rolSeleccionado ?? _pref.idUser, fechaActual);
-      });
-    } else if (_pref.cargo == '4') {
-      if (_rolSeleccionado == null || _rolSeleccionado!.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Seleccione un empleado antes de buscar.')),
-        );
-        return;
-      }
-
-      final fechaSeleccionada = _formKey.currentState?.fields['fecha']?.value;
-      if (fechaSeleccionada == null || fechaSeleccionada.toString().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Por favor selecciona una fecha antes de buscar.')),
-        );
-        return;
-      }
-
-      setState(() {
-        _cargarAbonos = true;
-        _futureMovimientos = _mostrarClientes
-            ? _dataBaseServices.consultarListadoReporteAbonosClientes(
-                _rolSeleccionado!,
-                fechaSeleccionada.toString().substring(0, 10))
-            : _dataBaseServices.listaMovimientoscaja2(
-                _rolSeleccionado!, fechaSeleccionada.toString());
-      });
-    }
+    setState(() {
+      _cargarAbonos = true;
+    });
   }
 
   Future<String> _calcularTotalRecaudado(BuildContext context) async {
@@ -295,7 +333,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                           setState(() {
                             _futureCaja = _calcularTotalRecaudado(context);
                           });
-                          _buscarAbonos();
+                          _cargarTodosDatos();
                         },
                       ),
                     ),
@@ -315,7 +353,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                 // Mostrar clientes o movimientos
                 _mostrarClientes
                     ? listadoReporteAbonosClientes()
-                    : _movimientos(),
+                    : _gastosmovimientos(),
             ],
           ),
         ),
@@ -453,88 +491,80 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     );
   }
 
-  Widget _movimientos() {
+  Widget _gastosmovimientos() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_datosMovimientos.isEmpty) {
+      return const Expanded(
+        child:  Center(
+          child: Text('No hay movimientos registrados hoy.'),
+        ),
+      );
+    }
+
     return Expanded(
-      child: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _futureMovimientos,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return const Center(child: Text('Error al cargar los movimientos'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-                child: Text('No hay movimientos registrados hoy'));
-          } else {
-            final movimientos = snapshot.data!;
-            return ListView.builder(
-              shrinkWrap: true,
-              itemCount: movimientos.length,
-              itemBuilder: (context, index) {
-                final movimiento = movimientos[index];
-                final tipoMovimiento =
-                    movimiento['tipoMovimiento'] == 1 ? 'Ingreso' : 'Gasto';
-                final colorValor = tipoMovimiento == 'Ingreso'
-                    ? ColoresApp.verde
-                    : ColoresApp.rojo;
-                return ListTile(
-                  title: Text(tipoMovimiento),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(movimiento['movi_descripcion']
-                          .toString()
-                          .toUpperCase()),
-                      Text(movimiento['movi_fecha']),
-                    ],
-                  ),
-                  trailing: SizedBox(
-                    width: 120,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          FormatoMiles()
-                              .formatearCantidad(movimiento['movi_valor']),
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: colorValor,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        if (_pref.cargo == "4")
-                          IconButton(
-                              onPressed: () async {
-                                final data = await Databaseservices()
-                                    .eliminarMovimiento(
-                                        movimiento['idmovimiento'].toString());
-                                if (data) {
-                                  SmartDialog.showToast(
-                                      "Movimiento eliminado con éxito");
-                                  // Refrescar la vista
-                                  setState(() {
-                                    _futureCaja =
-                                        _calcularTotalRecaudado(context);
-                                    _futureMovimientos =
-                                        _consultarListadoReporteAbonosClientes();
-                                  });
-                                } else {
-                                  SmartDialog.showToast(
-                                      "No se pudo eliminar el movimiento");
-                                }
-                              },
-                              icon: const Icon(
-                                Icons.delete,
-                                color: ColoresApp.rojoLogo,
-                              ))
-                      ],
+      child: ListView.builder(
+        shrinkWrap: true,
+        itemCount: _datosMovimientos.length,
+        itemBuilder: (context, index) {
+          final movimiento = _datosMovimientos[index];
+          final tipoMovimiento =
+              movimiento['tipoMovimiento'] == 1 ? 'Ingreso' : 'Gasto';
+          final colorValor =
+              tipoMovimiento == 'Ingreso' ? ColoresApp.verde : ColoresApp.rojo;
+
+          return ListTile(
+            title: Text(tipoMovimiento),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(movimiento['movi_descripcion'].toString().toUpperCase()),
+                Text(movimiento['movi_fecha']),
+              ],
+            ),
+            trailing: SizedBox(
+              width: 120,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    FormatoMiles().formatearCantidad(movimiento['movi_valor']),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: colorValor,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                );
-              },
-            );
-          }
+                  if (_pref.cargo == "4")
+                    IconButton(
+                      onPressed: () async {
+                        final data = await Databaseservices()
+                            .eliminarMovimiento(
+                                movimiento['idmovimiento'].toString());
+                        if (data) {
+                          SmartDialog.showToast(
+                              "Movimiento eliminado con éxito");
+                          setState(() {
+                            _futureCaja = _calcularTotalRecaudado(context);
+                            _cargarTodosDatos();
+                          });
+                        } else {
+                          SmartDialog.showToast(
+                              "No se pudo eliminar el movimiento");
+                        }
+                      },
+                      icon: const Icon(
+                        Icons.delete,
+                        color: ColoresApp.rojoLogo,
+                      ),
+                    )
+                ],
+              ),
+            ),
+          );
         },
       ),
     );
@@ -592,144 +622,122 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget listadoReporteAbonosClientes() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_datosClientes.isEmpty) {
+      return const Center(
+        child: Text('No hay datos disponibles'),
+      );
+    }
+
+    final abonos = _datosClientes;
+    int totalClientes = abonos.length;
+    int clientesAbonaron =
+        abonos.where((abono) => abono['estado_abono'] == 'Abonó').length;
+    int clientesNoAbonaron = totalClientes - clientesAbonaron;
+
+    // Encontrar el índice donde cambia de "Abonó" a "No Abonó"
+    int dividerIndex = abonos.indexWhere(
+      (abono) => abono['estado_abono'] == 'No Abonó',
+    );
+
+    double sumaDinero = abonos.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
+    });
+
     return Expanded(
       flex: 7,
       child: SizedBox(
         width: double.infinity,
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            Padding(
+              padding: const EdgeInsets.all(10.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    'Total clientes: $totalClientes',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Recogio: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      Text(
+                        'Abonaron: $clientesAbonaron',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            color: ColoresApp.verde,
+                            fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        'No abonaron: $clientesNoAbonaron',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            color: ColoresApp.rojo,
+                            fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const Divider(),
+                ],
+              ),
+            ),
             Expanded(
-              child: FutureBuilder<List<Map<String, dynamic>>>(
-                future: _consultarListadoReporteAbonosClientes(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  } else if (snapshot.hasError) {
-                    return Center(child: Text('Error: ${snapshot.error}'));
-                  } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Center(
-                      child: Text('No hay datos disponibles'),
-                    );
-                  } else {
-                    final abonos = snapshot.data!;
-                    int totalClientes = abonos.length;
-                    int clientesAbonaron = abonos
-                        .where((abono) => abono['estado_abono'] == 'Abonó')
-                        .length;
-                    int clientesNoAbonaron = totalClientes - clientesAbonaron;
-                    // Encontrar el índice donde cambia de "Abonó" a "No Abonó"
-                    int dividerIndex = abonos.indexWhere(
-                        (abono) => abono['estado_abono'] == 'No Abonó');
-
-                    double sumaDinero = abonos.fold(0.0, (sum, cliente) {
-                      return sum +
-                          (double.tryParse(
-                                  cliente['monto_abonado'].toString()) ??
+              child: ListView.builder(
+                itemCount: abonos.length,
+                itemBuilder: (context, index) {
+                  final abono = abonos[index];
+                  String montoAbonadoFormateado = NumberFormat('#,###', 'es_CO')
+                      .format(
+                          double.tryParse(abono['monto_abonado'].toString()) ??
                               0.0);
-                    });
-                    return Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(10.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Text(
-                                'Total clientes: $totalClientes',
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              Text(
-                                'Recogio: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
-                                style: const TextStyle(
-                                    fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  Text(
-                                    'Abonaron: $clientesAbonaron',
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        color: ColoresApp.verde,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                  Text(
-                                    'No abonaron: $clientesNoAbonaron',
-                                    style: const TextStyle(
-                                        fontSize: 16,
-                                        color: ColoresApp.rojo,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                              const Divider(),
-                            ],
+
+                  bool mostrarDivider =
+                      dividerIndex > 0 && index == dividerIndex;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (mostrarDivider)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8.0),
+                          child: Text(
+                            'No abonaron',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: ColoresApp.rojo,
+                            ),
                           ),
                         ),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: abonos.length,
-                            itemBuilder: (context, index) {
-                              final abono = abonos[index];
-                              String montoAbonadoFormateado = NumberFormat(
-                                      '#,###', 'es_CO')
-                                  .format(double.tryParse(
-                                          abono['monto_abonado'].toString()) ??
-                                      0.0);
-                              // Cálculo del índice donde empieza "No Abonó"
-                              int dividerIndex = abonos.indexWhere(
-                                (abono) => abono['estado_abono'] == 'No Abonó',
-                              );
-                              bool mostrarDivider =
-                                  dividerIndex > 0 && index == dividerIndex;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  if (mostrarDivider)
-                                    const Padding(
-                                      padding:
-                                          EdgeInsets.symmetric(vertical: 8.0),
-                                      child: Text(
-                                        'No abonaron', // Encabezado de la sección
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 16,
-                                          color: ColoresApp.rojo,
-                                        ),
-                                      ),
-                                    ),
-                                  ListTile(
-                                    title: Text(abono['cliente']
-                                        .toString()
-                                        .toUpperCase()),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                            'Monto Abonado: $montoAbonadoFormateado'),
-                                        Text(
-                                            'Estado Abono: ${abono['estado_abono']}'),
-                                      ],
-                                    ),
-                                  ),
-                                  Divider(
-                                    color: mostrarDivider
-                                        ? Colors.transparent
-                                        : Colors.grey.shade300,
-                                    thickness: 1,
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
+                      ListTile(
+                        title: Text(abono['cliente'].toString().toUpperCase()),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Monto Abonado: $montoAbonadoFormateado'),
+                            Text('Estado Abono: ${abono['estado_abono']}'),
+                          ],
                         ),
-                      ],
-                    );
-                  }
+                      ),
+                      Divider(
+                        color: mostrarDivider
+                            ? Colors.transparent
+                            : Colors.grey.shade300,
+                        thickness: 1,
+                      ),
+                    ],
+                  );
                 },
               ),
             ),
@@ -745,7 +753,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
-    if (!mounted) return[];
+    if (!mounted) return [];
     // Determina el ID y la fecha a usar
     String idConsultado;
     String fechaSeleccionada;
@@ -797,7 +805,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
-    if (!mounted) return[];
+    if (!mounted) return [];
     // Determina el ID y la fecha a usar
     String idConsultado;
     String fechaSeleccionada;
@@ -844,250 +852,212 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget listaPrestamos() {
-    return FutureBuilder<List<dynamic>>(
-      future: fetchListaPrestamos(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return const Center(
-            child: Text(
-              textAlign: TextAlign.center,
-              AppTextos.nohayInternetVC,
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(AppTextos.nohayPrestamos),
-          );
-        } else {
-          final clientes = snapshot.data!;
-          int totalPrestamos = clientes.length;
-          int conSeguro = 0;
-          int sinSeguro = 0;
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-// Calcular las sumas y contar préstamos con/sin seguro
-          double sumaSeguros = clientes.fold(0.0, (sum, cliente) {
-            double seguro =
-                double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
-            if (seguro > 0) {
-              conSeguro++;
-            } else {
-              sinSeguro++;
-            }
-            return sum + seguro;
-          });
-          double sumaDinero = clientes.fold(0.0, (sum, cliente) {
-            return sum +
-                (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
-          });
-          return Column(
+    if (_datosPrestamos.isEmpty) {
+      return const Center(
+        child: Text(AppTextos.nohayPrestamos),
+      );
+    }
+
+    final clientes = _datosPrestamos;
+    int totalPrestamos = clientes.length;
+    int conSeguro = 0;
+    int sinSeguro = 0;
+
+    double sumaSeguros = clientes.fold(0.0, (sum, cliente) {
+      double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+      if (seguro > 0) {
+        conSeguro++;
+      } else {
+        sinSeguro++;
+      }
+      return sum + seguro;
+    });
+
+    double sumaDinero = clientes.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
+    });
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Prestamos: $totalPrestamos',
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Prestado: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          'Con seguro: $conSeguro',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                       const Text(' | ',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          )),
-                        Text(
-                          'Sin seguro: $sinSeguro',
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'Seguros: ${FormatoMiles().formatearCantidad(sumaSeguros.toString())}',
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
+              Text(
+                'Prestamos: $totalPrestamos',
+                style:
+                    const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = clientes[index];
-                    return Column(
-                      children: [
-                        const Divider(),
-                        ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: ColoresApp.verde,
-                            child: Text(
-                              cliente['per_nombre'][0].toString().toUpperCase(),
-                              style: const TextStyle(color: ColoresApp.blanco),
-                            ),
-                          ),
-                          title: Text(
-                            '${cliente['per_nombre'].toString().toUpperCase()} ${cliente['per_apellido'].toString().toUpperCase()}',
-                            style: const TextStyle(color: ColoresApp.negro),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Cantidad total: ${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                              Text(
-                                'Valor Cuota: ${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                              Text(
-                                'Valor seguro: ${FormatoMiles().formatearCantidad(cliente['pres_seguro'])}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+              Text(
+                'Prestado: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Con seguro: $conSeguro',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                  const Text(' | ',
+                      style:
+                          TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                  Text(
+                    'Sin seguro: $sinSeguro',
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              Text(
+                'Seguros: ${FormatoMiles().formatearCantidad(sumaSeguros.toString())}',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
-          );
-        }
-      },
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: clientes.length,
+            itemBuilder: (context, index) {
+              final cliente = clientes[index];
+              return Column(
+                children: [
+                  const Divider(),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: ColoresApp.verde,
+                      child: Text(
+                        cliente['per_nombre'][0].toString().toUpperCase(),
+                        style: const TextStyle(color: ColoresApp.blanco),
+                      ),
+                    ),
+                    title: Text(
+                      '${cliente['per_nombre'].toString().toUpperCase()} ${cliente['per_apellido'].toString().toUpperCase()}',
+                      style: const TextStyle(color: ColoresApp.negro),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Cantidad total: ${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Valor Cuota: ${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Valor seguro: ${FormatoMiles().formatearCantidad(cliente['pres_seguro'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
   Widget listaCancelados() {
-    return FutureBuilder<List<dynamic>>(
-      future: fetchListaCancelados(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return const Center(
-            child: Text(
-              textAlign: TextAlign.center,
-              AppTextos.nohayInternetVC,
-            ),
-          );
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(
-            child: Text(AppTextos.nohayPrestamosCancelados),
-          );
-        } else {
-          final clientes = snapshot.data!;
-          int totalPrestamos = clientes.length;
-          // Calcular la suma de los seguros
-          double sumaSeguros = clientes.fold(0.0, (sum, cliente) {
-            return sum +
-                (double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0);
-          });
-          double totalsumaAbonos = clientes.fold(0.0, (sum, cliente) {
-            return sum +
-                (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
-          });
-          double sumaDinero = clientes.fold(0.0, (sum, cliente) {
-            return sum +
-                (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
-          });
-          return Column(
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_datosCancelados.isEmpty) {
+      return const Center(
+        child: Text(AppTextos.nohayPrestamosCancelados),
+      );
+    }
+
+    final clientes = _datosCancelados;
+    int totalPrestamos = clientes.length;
+
+    double totalsumaAbonos = clientes.fold(0.0, (sum, cliente) {
+      return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
+    });
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Total Cancelados: $totalPrestamos',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Suma: ${FormatoMiles().formatearCantidad(totalsumaAbonos.toString())}',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.bold),
-                    ),
-                  ],
-                ),
+              Text(
+                'Total Cancelados: $totalPrestamos',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: clientes.length,
-                  itemBuilder: (context, index) {
-                    final cliente = clientes[index];
-                    return Column(
-                      children: [
-                        const Divider(),
-                        ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: ColoresApp.verde,
-                            child: Text(
-                              cliente['per_nombre'][0].toString().toUpperCase(),
-                              style: const TextStyle(color: ColoresApp.blanco),
-                            ),
-                          ),
-                          title: Text(
-                            '${cliente['per_nombre'].toString().toUpperCase()} ${cliente['per_apellido'].toString().toUpperCase()}',
-                            style: const TextStyle(color: ColoresApp.negro),
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Fecha inicio: ${cliente['pres_fecha']}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                              Text(
-                                'Fecha fin: ${cliente['pre_fecha_finalizo']}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                              Text(
-                                'Cantidad total: ${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                              Text(
-                                'Suma ultimo abono: ${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
-                                style: const TextStyle(color: ColoresApp.negro),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+              Text(
+                'Suma: ${FormatoMiles().formatearCantidad(totalsumaAbonos.toString())}',
+                style:
+                    const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
               ),
             ],
-          );
-        }
-      },
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: clientes.length,
+            itemBuilder: (context, index) {
+              final cliente = clientes[index];
+              return Column(
+                children: [
+                  const Divider(),
+                  ListTile(
+                    leading: CircleAvatar(
+                      backgroundColor: ColoresApp.verde,
+                      child: Text(
+                        cliente['per_nombre'][0].toString().toUpperCase(),
+                        style: const TextStyle(color: ColoresApp.blanco),
+                      ),
+                    ),
+                    title: Text(
+                      '${cliente['per_nombre'].toString().toUpperCase()} ${cliente['per_apellido'].toString().toUpperCase()}',
+                      style: const TextStyle(color: ColoresApp.negro),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Fecha inicio: ${cliente['pres_fecha']}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Fecha fin: ${cliente['pre_fecha_finalizo']}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Cantidad total: ${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Suma ultimo abono: ${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
