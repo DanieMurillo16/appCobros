@@ -279,7 +279,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                       TextButton(
                         onPressed: () async {
                           final data = await Databaseservices()
-                              .cerrarCajaCobrador(_rolSeleccionado!, saldoCaja!,
+                              .cerrarCajaCobrador(_rolSeleccionado!, saldoCaja!,_pref.cobro,
                                   descripcion: "cierre caja vcjd");
                           if (data['success'] == true) {
                             SmartDialog.showToast("Caja cerrada con éxito");

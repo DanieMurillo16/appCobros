@@ -141,7 +141,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
         datos['tipo'],
         datos['valor'],
         datos['descripcion'],
-        datos['fecha'],
+        _pref.cobro,
         datos['fk'],
       );
 
@@ -291,7 +291,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
           WidgetTextField(
             identificador: "Descripción",
             hintText: "Descripción del gasto/ingreso",
-            maxLength: 45,
+            maxLength: 30,
             keyboardType: TextInputType.text,
             controller: descripcionController,
             icono: const Icon(Icons.description),
@@ -322,7 +322,6 @@ class _GastosStateState extends BaseScreen<GastosState> {
                             return;
                           }
                         }
-
                         SmartDialog.showLoading(
                             msg: "Insertando movimiento...");
                         final formData = _formKey.currentState!.value;
@@ -336,7 +335,10 @@ class _GastosStateState extends BaseScreen<GastosState> {
                         if (_pref.cargo == '4') {
                           if (formData['tipoCaja'] == "Caja General") {
                             final data = await Databaseservices()
-                                .cerrarCajaCobrador(formData['empleado'], valor,
+                                .cerrarCajaCobrador(
+                                  formData['empleado'],
+                                   valor,
+                                   _pref.cobro,
                                     descripcion:
                                         descripcionController.text.trim());
                             if (data['success'] == true) {
@@ -370,7 +372,6 @@ class _GastosStateState extends BaseScreen<GastosState> {
                           "valor":
                               valorController.text.trim().replaceAll(".", ""),
                           "descripcion": descripcionController.text.trim(),
-                          "fecha": Databaseservices().obtenerFechaActual(),
                           "fk": _pref.idUser,
                         };
                         // Agregar empleado seleccionado si el cargo es 4

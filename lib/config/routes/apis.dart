@@ -44,9 +44,9 @@ class ApiConstants {
   static const String insertarnuevoEmpleado =
       '$baseUrl/InsertarNuevaPersona.php';
   static const String insertarMovimientoCaja =
-      '$baseUrl/insertarMovimientoCaja.php';
+      '$baseUrl/insertarMovimientoCaja2.php';
   static const String insertarCajaGeneral =
-      '$baseUrl/insertarCajaGeneral.php';
+      '$baseUrl/insertarCajaGeneral2.php';
   //-----------------Actualizaciones
   static const String actualizarEstadoUsuario =
       '$baseUrl/actualizarEstadoUsuario.php?id=';

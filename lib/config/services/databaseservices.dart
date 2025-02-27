@@ -54,7 +54,10 @@ class Databaseservices {
     return [];
   }
 
-  Future<Map<String, dynamic>> cerrarCajaCobrador(String empleado, String saldo,
+  Future<Map<String, dynamic>> cerrarCajaCobrador(
+    String empleado,
+    String saldo,
+    String cobro,
       {String? descripcion}) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
@@ -68,6 +71,7 @@ class Databaseservices {
       Map<String, String> body = {
         "fk": empleado,
         "cantidad": saldo,
+        "cobro": cobro,
       };
 
       // Agregar `caja_descripcion` al cuerpo si no es nulo ni vacío
@@ -114,7 +118,9 @@ class Databaseservices {
   }
 
   Future<bool> insertarNuevoMovimiento(String tipo, String valor,
-      String descripcion, String fecha, String fkUser) async {
+      String descripcion,
+      String cobro,
+       String fkUser) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
@@ -126,16 +132,14 @@ class Databaseservices {
         "tipo": tipo,
         "valor": valor,
         "desc": descripcion,
-        "fecha": fecha,
+        "cobro": cobro,
         "fk": fkUser,
       });
 
       if (respuesta.statusCode != 200) {
         throw Exception('Error en el servidor: ${respuesta.statusCode}');
       }
-
       final Map<String, dynamic> data = jsonDecode(respuesta.body);
-
       if (data['success'] == true) {
         // Si el JSON trae success:true, retornamos true.
         return true;
