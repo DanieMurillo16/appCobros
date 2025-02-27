@@ -43,7 +43,7 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
             : _pref.idUser;
     final fecha = Databaseservices().obtenerFechaActual();
     var url = Uri.parse(
-        "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fecha");
+        "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fecha&cobro=${_pref.cobro}");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -68,7 +68,7 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados = await Databaseservices().fetchEmpleados(_pref.cargo);
+      final empleados = await Databaseservices().fetchEmpleados(_pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados;
       });

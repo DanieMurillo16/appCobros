@@ -60,7 +60,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
     if (!mounted) return;
     try {
       final empleados =
-          await _databaseServices.fetchEmpleados(_preferences.cargo);
+          await _databaseServices.fetchEmpleados(_preferences.cargo, _preferences.cobro);
       if (!mounted) return;
       setState(() {if (!mounted) return;
         _roles = empleados;

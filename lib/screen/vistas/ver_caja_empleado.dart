@@ -144,7 +144,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo);
+      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados.isNotEmpty ? empleados : [];
       });
@@ -785,7 +785,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     }
 
     var url = Uri.parse(
-        "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fechaSeleccionada");
+        "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fechaSeleccionada&cobro=${_pref.cobro}");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -837,7 +837,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     }
 
     var url = Uri.parse(
-        "${ApiConstants.listaPrestamosCancelados}$idConsultado&fc=$fechaSeleccionada");
+        "${ApiConstants.listaPrestamosCancelados}$idConsultado&fc=$fechaSeleccionada&cobro=${_pref.cobro}");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {

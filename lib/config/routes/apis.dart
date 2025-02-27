@@ -7,30 +7,30 @@ class ApiConstants {
   static const String verificarEstadoUsuario = '$baseUrl/getEstadoUsuario.php?id=';
   static const String verificarEstadoUsuarioCaja = '$baseUrl/verificarEstadoUsuarioCaja.php?id=';
   static const String buscarDatosCliente = '$baseUrl/verDatosCliente.php?id=';
-  static const String listaEmpleados = '$baseUrl/verListaEmpleados.php';
-  static const String listaCajaCobradores = '$baseUrl/verlistaCajaCobradores.php';
+  static const String listaEmpleados = '$baseUrl/verListaEmpleados2.php?cobro=';
+  static const String listaCajaCobradores = '$baseUrl/verlistaCajaCobradores2.php?cobro=';
   static const String historialCierres = '$baseUrl/historialCierreCajaCobradores.php?id=';
   static const String guardarRuta = '$baseUrl/InsertarguardarRuta.php';
   static const String guardarRuta2 = '$baseUrl/InsertarguardarRuta2.php';
   static const String consultarRuta = '$baseUrl/ver_rutas_cobro.php?fk_empleado=';
   static const String consultarRuta2 = '$baseUrl/ver_rutas_cobro2.php?fk_empleado=';
   static const String listaEmpleadosSpinner = '$baseUrl/VerEmpleadoSpinnner.php';
-  static const String listaEmpleadosSpinner2 = '$baseUrl/verListaEmpleadosRol.php?rol=';
+  static const String listaEmpleadosSpinner2 = '$baseUrl/verListaEmpleadosRol2.php?rol=';
   static const String verNombrePersonaPrestamos = '$baseUrl/verNombrePersonaPrestamos.php?id=';
   static const String verListadoReporteAbonosClientes = '$baseUrl/verReporteRecuadosClientes.php';
   static const String verRecaudosEmpleado = '$baseUrl/verRecaudosEmpleado.php?id=';
-  static const String verCajaEmpleado = '$baseUrl/verCajaEmpleado.php?id=';
+  static const String verCajaEmpleado = '$baseUrl/verCajaEmpleado2.php?id=';
   static const String verRolesPersona = '$baseUrl/VerRolesPersona.php';
   static const String listaClientesConPrestamos =
-      '$baseUrl/getUsuariosConPrestamos2.php?id=';
+      '$baseUrl/getUsuariosConPrestamos3.php?id=';
   static const String listaMovimientosCaja =
       '$baseUrl/listaMovimientosCaja.php?id=';
   static const String sumaMovimientosCajaIngresos =
       '$baseUrl/verSumaMovimientosIngresos.php?id=';
   static const String listaPrestamosNuevos =
-      '$baseUrl/listaPrestamos.php?id=';
+      '$baseUrl/listaPrestamos2.php?id=';
   static const String listaPrestamosCancelados =
-      '$baseUrl/listaPrestamosCancelados.php?id=';
+      '$baseUrl/listaPrestamosCancelados2.php?id=';
   static const String verAbonoPrestamoEspecifico =
       '$baseUrl/VerAbonoPrestamoEspecifico2.php?id_prestamo=';
 

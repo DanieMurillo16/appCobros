@@ -45,7 +45,7 @@ class _VerCajaGeneralState extends BaseScreen<VerCajaGeneral> {
 
     if (!mounted) return[];
     try {
-      return await _dataBaseServices.listaCajaCobradores();
+      return await _dataBaseServices.listaCajaCobradores(_pref.cobro);
     } catch (e) {
       debugPrint("Error al cargar caja: $e");
       return [];

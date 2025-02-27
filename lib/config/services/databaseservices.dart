@@ -55,9 +55,7 @@ class Databaseservices {
   }
 
   Future<Map<String, dynamic>> cerrarCajaCobrador(
-    String empleado,
-    String saldo,
-    String cobro,
+      String empleado, String saldo, String cobro,
       {String? descripcion}) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
@@ -118,9 +116,7 @@ class Databaseservices {
   }
 
   Future<bool> insertarNuevoMovimiento(String tipo, String valor,
-      String descripcion,
-      String cobro,
-       String fkUser) async {
+      String descripcion, String cobro, String fkUser) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
@@ -282,13 +278,15 @@ class Databaseservices {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchEmpleados(String rol) async {
+  Future<List<Map<String, dynamic>>> fetchEmpleados(
+      String rol, String cobro) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
     }
     try {
-      var url = Uri.parse(ApiConstants.listaEmpleadosSpinner2 + rol);
+      var url = Uri.parse(
+          ApiConstants.listaEmpleadosSpinner2 + rol + "&cobro=" + cobro);
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -315,7 +313,7 @@ class Databaseservices {
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
     }
-    var url = Uri.parse(ApiConstants.listaClientesConPrestamos + idConsultado);
+    var url = Uri.parse(ApiConstants.listaClientesConPrestamos + idConsultado+'&cobro='+_pref.cobro);
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -326,19 +324,27 @@ class Databaseservices {
     }
   }
 
-  Future<List<Map<String, dynamic>>> listaCajaCobradores() async {
+  Future<List<Map<String, dynamic>>> listaCajaCobradores(String cobro) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
     }
-    var url = Uri.parse(ApiConstants.listaCajaCobradores);
+
+    var url = Uri.parse("${ApiConstants.listaCajaCobradores}?cobro=$cobro");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.cast<Map<String, dynamic>>();
+      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+
+      if (jsonResponse['success'] == true) {
+        return List<Map<String, dynamic>>.from(jsonResponse['data']);
+      } else {
+        throw Exception(
+            jsonResponse['error'] ?? 'Error al cargar los cobradores');
+      }
     } else {
-      throw Exception('Error al cargar los clientes');
+      throw Exception(
+          'Error al cargar la lista (Código ${response.statusCode})');
     }
   }
 
@@ -491,7 +497,7 @@ class Databaseservices {
       throw Exception('No tienes conexión a internet');
     }
     final url =
-        Uri.parse('${ApiConstants.verCajaEmpleado}$idConsultado&fecha=$fecha');
+        Uri.parse('${ApiConstants.verCajaEmpleado}$idConsultado&fecha=$fecha&cobro=${_pref.cobro}');
     // Realizar la solicitud HTTP GET
     final response = await http.get(url);
     // Verificar el código de estado de la respuesta
@@ -584,6 +590,7 @@ class Databaseservices {
       throw Exception('Error en el servidor: ${response.statusCode}');
     }
   }
+
   Future<bool> eliminarMovimiento(String id) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {

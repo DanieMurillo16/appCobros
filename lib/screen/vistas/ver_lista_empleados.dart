@@ -27,19 +27,21 @@ class EmpleadosLista extends StatefulWidget {
 class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
   final _pref = PreferenciasUsuario();
 
-  Future<List<dynamic>> fetchClientes() async {
-    if (!mounted) return[];
+  Future<List<dynamic>> listaEmpleados() async {
+    if (!mounted) return [];
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
       // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
-
-    var url = Uri.parse(ApiConstants.listaEmpleados);
+    var url = Uri.parse('${ApiConstants.listaEmpleados}${_pref.cobro}');
     final response = await http.get(url);
-
     if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = jsonDecode(response.body);
+      if (data['success'] == true) {
+        return data['data'] ?? [];
+      }
+      return [];
     } else {
       throw Exception('Error al cargar los clientes');
     }
@@ -73,7 +75,7 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
       ),
       drawer: const DrawerMenu(),
       body: FutureBuilder<List<dynamic>>(
-        future: fetchClientes(),
+        future: listaEmpleados(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -112,7 +114,7 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
                           children: [
                             const Divider(),
                             Text(
-                              'Estado: ${cliente['usu_estado'] == "1" ? "Activo" : "Inactivo"}',
+                              'Estado: ${cliente['usu_estado'].toString() == "1" ? "Activo" : "Inactivo"}',
                               style: const TextStyle(color: ColoresApp.negro),
                             ),
                             Text(
@@ -191,17 +193,22 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Switch(
-                              value: cliente['usu_estado'] == '1',
+                              value: cliente['usu_estado'].toString() ==
+                                  "1", // Convertir explícitamente a String
                               onChanged: (bool value) async {
+                                if (!mounted) {
+                                  return; // Agregar verificación de mounted
+                                }
                                 final nuevoEstado = value ? '1' : '0';
                                 try {
                                   await Databaseservices()
                                       .actualizarEstadoEmpleado(
-                                    // Se envía el usuario y el nuevo estado
                                     cliente['usu_nombre'].toString(),
                                     nuevoEstado,
                                   );
-                                  // Actualiza el estado localmente para reflejar cambios
+
+                                  if (!mounted) return;
+
                                   setState(() {
                                     cliente['usu_estado'] = nuevoEstado;
                                   });

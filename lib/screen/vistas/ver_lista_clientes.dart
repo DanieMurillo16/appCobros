@@ -93,58 +93,98 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
           ? await _dataBaseServices.fetchClientes(empleadoId)
           : await _dataBaseServices.fetchClientes(_pref.idUser);
 
-      // Obtener la ruta para el empleado
-      final rutaBD =
-          await _dataBaseServices.obtenerRuta(empleadoId ?? _pref.idUser);
-
-      if (rutaBD.isNotEmpty) {
-        // Crear un mapa de clientes basado en idpersona y idprestamos
-        final Map<String, Map<String, dynamic>> clientesMap = {
-          for (var cliente in newClientes)
-            '${cliente['idpersona']}_${cliente['idprestamos']}': cliente
-        };
-
-        List<Map<String, dynamic>> clientesOrdenados = [];
-
-        // Ordenar clientes según la ruta
-        for (var rutaItem in rutaBD) {
-          final idPersonaPrestamo =
-              '${rutaItem['fk_cliente']}_${rutaItem['fk_prestamo']}';
-          if (clientesMap.containsKey(idPersonaPrestamo)) {
-            final cliente = clientesMap[idPersonaPrestamo];
-            if (cliente != null) {
-              clientesOrdenados.add({
-                ...cliente,
-                'orden': rutaItem['orden'],
-              });
-              clientesMap.remove(idPersonaPrestamo);
-            }
-          }
-        }
-
-        // Agregar los clientes que no están en la ruta al final
-        clientesOrdenados.addAll(clientesMap.values.map((cliente) => {
-              ...cliente,
-              'orden': clientesOrdenados.length,
-            }));
-
+      if (newClientes.isEmpty) {
         if (mounted) {
           setState(() {
-            _clientes = clientesOrdenados;
+            _clientes = [];
             _isLoading = false;
           });
         }
-      } else {
-        // Si no hay ruta, mantener el orden original
+        return;
+      }
+
+      try {
+        // Intentar obtener la ruta, pero no detener el proceso si falla
+        final rutaBD =
+            await _dataBaseServices.obtenerRuta(empleadoId ?? _pref.idUser);
+
+        if (rutaBD.isNotEmpty) {
+          // Crear un mapa de clientes basado en idpersona y idprestamos
+          final Map<String, Map<String, dynamic>> clientesMap = {
+            for (var cliente in newClientes)
+              '${cliente['idpersona']}_${cliente['idprestamos']}': cliente
+          };
+          List<Map<String, dynamic>> clientesOrdenados = [];
+
+          // Ordenar clientes según la ruta
+          for (var rutaItem in rutaBD) {
+            final idPersonaPrestamo =
+                '${rutaItem['fk_cliente']}_${rutaItem['fk_prestamo']}';
+            if (clientesMap.containsKey(idPersonaPrestamo)) {
+              final cliente = clientesMap[idPersonaPrestamo];
+              if (cliente != null) {
+                clientesOrdenados.add({
+                  ...cliente,
+                  'orden': rutaItem['orden'],
+                });
+                clientesMap.remove(idPersonaPrestamo);
+              }
+            }
+          }
+
+          // Agregar los clientes que no están en la ruta al final
+          clientesOrdenados.addAll(clientesMap.values.map((cliente) => {
+                ...cliente,
+                'orden': clientesOrdenados.length,
+              }));
+
+          if (mounted) {
+            setState(() {
+              _clientes = clientesOrdenados;
+              _isLoading = false;
+            });
+          }
+        } else {
+          // Si no hay ruta, asignar orden secuencial a los clientes
+          final clientesConOrden = newClientes
+              .asMap()
+              .map((index, cliente) => MapEntry(index, {
+                    ...cliente,
+                    'orden': index,
+                  }))
+              .values
+              .toList();
+
+          if (mounted) {
+            setState(() {
+              _clientes = clientesConOrden;
+              _isLoading = false;
+            });
+          }
+        }
+      } catch (rutaError) {
+        // Si falla la obtención de la ruta, mostrar los clientes sin orden específico
+        debugPrint("Error al obtener ruta: $rutaError");
         if (mounted) {
           setState(() {
-            _clientes = newClientes;
+            _clientes = newClientes
+                .map((cliente) => {
+                      ...cliente,
+                      'orden': 0,
+                    })
+                .toList();
             _isLoading = false;
           });
         }
       }
     } catch (e) {
       debugPrint("Error al cargar clientes: $e");
+      if (mounted) {
+        setState(() {
+          _clientes = [];
+          _isLoading = false;
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -169,7 +209,8 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
       return; // Verificar si el widget está montado antes de continuar
     }
     try {
-      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo);
+      final empleados =
+          await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
       if (mounted) {
         // Verificar nuevamente antes de llamar setState
         setState(() {
@@ -249,31 +290,41 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
                       ],
                     ),
                   )
-                : ListView.builder(
-                    controller: _scrollController,
-                    itemCount:
-                        _filtrarClientes(_buscadorController.text).length <
+                : _clientes.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'No hay clientes disponibles.',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: ColoresApp.negro,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        controller: _scrollController,
+                        itemCount: _filtrarClientes(_buscadorController.text)
+                                    .length <
                                 _itemsToShow
                             ? _filtrarClientes(_buscadorController.text).length
                             : _itemsToShow,
-                    itemBuilder: (context, index) {
-                      final cliente =
-                          _filtrarClientes(_buscadorController.text)[index];
-                      return ClienteCard(
-                        cliente: cliente,
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => Clientepagoabonos(
-                                idPrestamo: cliente['idprestamos'],
-                              ),
-                            ),
+                        itemBuilder: (context, index) {
+                          final cliente =
+                              _filtrarClientes(_buscadorController.text)[index];
+                          return ClienteCard(
+                            cliente: cliente,
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => Clientepagoabonos(
+                                    idPrestamo: cliente['idprestamos'],
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
           ),
         ],
       ),
@@ -354,26 +405,27 @@ class ClienteCard extends StatelessWidget {
   });
 
   Color _obtenerColorAvatar() {
-if (cliente['ultimo_abono'] == null) {
-    // Verificar si es un préstamo nuevo (de hoy)
-    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
-    final hoy = DateTime.now();
-    
-    // Comparar solo fecha sin hora
-    final esMismoDia = fechaPrestamo.year == hoy.year && 
-                      fechaPrestamo.month == hoy.month && 
-                      fechaPrestamo.day == hoy.day;
-    
-    if (esMismoDia) {
-      return ColoresApp.morado; // Préstamo nuevo de hoy
-    }
-    return ColoresApp.rojoLogo; // Préstamo sin pagos y no es de hoy
-  }
+    if (cliente['ultimo_abono'] == null) {
+      // Verificar si es un préstamo nuevo (de hoy)
+      final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
+      final hoy = DateTime.now();
 
-  final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
-  final hoy = DateTime.now();
-  final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
-  final tipoPrestamo = int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
+      // Comparar solo fecha sin hora
+      final esMismoDia = fechaPrestamo.year == hoy.year &&
+          fechaPrestamo.month == hoy.month &&
+          fechaPrestamo.day == hoy.day;
+
+      if (esMismoDia) {
+        return ColoresApp.morado; // Préstamo nuevo de hoy
+      }
+      return ColoresApp.rojoLogo; // Préstamo sin pagos y no es de hoy
+    }
+
+    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+    final hoy = DateTime.now();
+    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
+    final tipoPrestamo =
+        int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
     // Definir límites según tipo de préstamo
     int limiteModerado = 0;
     int limiteAlto = 0;
@@ -406,18 +458,18 @@ if (cliente['ultimo_abono'] == null) {
 
   String _obtenerMensajeMora() {
     if (cliente['ultimo_abono'] == null) {
-    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
-    final hoy = DateTime.now();
-    
-    final esMismoDia = fechaPrestamo.year == hoy.year && 
-                      fechaPrestamo.month == hoy.month && 
-                      fechaPrestamo.day == hoy.day;
-    
-    if (esMismoDia) {
-      return 'Préstamo nuevo de hoy';
+      final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
+      final hoy = DateTime.now();
+
+      final esMismoDia = fechaPrestamo.year == hoy.year &&
+          fechaPrestamo.month == hoy.month &&
+          fechaPrestamo.day == hoy.day;
+
+      if (esMismoDia) {
+        return 'Préstamo nuevo de hoy';
+      }
+      return 'Sin pagos registrados (desde ${cliente['pres_fecha']})';
     }
-    return 'Sin pagos registrados (desde ${cliente['pres_fecha']})';
-  }
 
     final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
     final hoy = DateTime.now();
