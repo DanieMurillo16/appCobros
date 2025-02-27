@@ -1,5 +1,6 @@
 // ignore_for_file: unused_local_variable, prefer_interpolation_to_compose_strings
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:cobrosapp/screen/widgets/appbar.dart';
 import 'package:cobrosapp/screen/widgets/drawemenu.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
+import '../../config/services/conexioninternet.dart';
 import '../widgets/spinner.dart';
 
 class RutaCobrador extends StatefulWidget {
@@ -33,28 +35,37 @@ class _RutaCobradorState extends State<RutaCobrador> {
   List<Map<String, dynamic>> _roles = [];
   String? _rolSeleccionado;
   bool _isLoading = true;
+  bool _mounted = true;
 
   @override
   void initState() {
     super.initState();
-    _initializeRuta();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    if (!mounted) return;
+    await _initializeRuta();
     final cargoEmpleado = _preferences.cargo;
     if (cargoEmpleado == '3' || cargoEmpleado == '4') {
-      _loadEmpleados();
+      await _loadEmpleados();
     }
   }
 
   @override
   void dispose() {
+    _mounted = false;
     _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadEmpleados() async {
+    if (!mounted) return;
     try {
       final empleados =
           await _databaseServices.fetchEmpleados(_preferences.cargo);
-      setState(() {
+      if (!mounted) return;
+      setState(() {if (!mounted) return;
         _roles = empleados;
       });
     } catch (e) {
@@ -63,11 +74,19 @@ class _RutaCobradorState extends State<RutaCobrador> {
   }
 
   Future<void> _initializeRuta({String? empleadoId}) async {
-    setState(() {
-      _isLoading = true;
-    });
+    if (!mounted) return;
 
     try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      // Verificar conexión antes de hacer las llamadas
+      final bool hasConnection = await Conexioninternet().isConnected();
+      if (!hasConnection) {
+        throw Exception('No hay conexión a internet');
+      }
+
       await Future.delayed(const Duration(milliseconds: 500));
       final rutaBD = await _databaseServices
           .obtenerRuta(empleadoId ?? _preferences.idUser);
@@ -75,6 +94,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
           .fetchClientes(empleadoId ?? _preferences.idUser);
 
       List<Map<String, dynamic>> clientesOrdenados = [];
+      if (!mounted) return;
 
       if (rutaBD.isNotEmpty) {
         // Crear un mapa de clientes basado en idpersona y idprestamos
@@ -114,7 +134,6 @@ class _RutaCobradorState extends State<RutaCobrador> {
                 cliente['idprestamos'], // Use idprestamo from fetchedClientes
           };
         }));
-
       } else {
         // Si no hay ruta existente, usar todos los clientes con orden y estado predeterminados
         clientesOrdenados = fetchedClientes
@@ -131,6 +150,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       debugPrint("Error al inicializar ruta: $e");
       SmartDialog.showToast("Empleado sin ruta asignada...");
       try {
@@ -157,6 +177,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
   }
 
   void actualizarPosicion(int viejaPosicion, int nuevaPosicion) {
+    if (!mounted) return;
     if (viejaPosicion < nuevaPosicion) {
       nuevaPosicion -= 1;
     }
@@ -167,36 +188,51 @@ class _RutaCobradorState extends State<RutaCobrador> {
     });
   }
 
+// Agregar debounce para evitar múltiples guardados
+  Timer? _saveDebouncer;
+
   Future<void> _guardarOrden() async {
-    final List<Map<String, dynamic>> ruta = clientes.map((cliente) {
-      return {
-        'fk_cliente': int.tryParse(cliente['idpersona'].toString()) ?? 0,
-        'orden': clientes.indexOf(cliente),
-        'estado': (cliente['estado'] ?? false) ? 1 : 0, // Manejo de nulos
-        'idprestamos': int.tryParse(cliente['idprestamos'].toString()) ??
-            0, // Conversión segura
-      };
-    }).toList();
+    if (!mounted) return;
 
-    debugPrint("Ruta a guardar: ${jsonEncode(ruta)}"); // Para depuración
+    _saveDebouncer?.cancel();
+    _saveDebouncer = Timer(const Duration(milliseconds: 500), () async {
+      try {
+        setState(() => _isLoading = true);
 
-    try {
-      // Enviar la ruta al backend
-      bool exito = await _databaseServices.guardarRuta(
-          _rolSeleccionado ?? _preferences.idUser, ruta);
-      if (exito) {
-        SmartDialog.showToast("Ruta guardada correctamente");
-      } else {
-        SmartDialog.showToast("Error al guardar la ruta");
+        final List<Map<String, dynamic>> ruta = clientes.map((cliente) {
+          return {
+            'fk_cliente': int.tryParse(cliente['idpersona'].toString()) ?? 0,
+            'orden': clientes.indexOf(cliente),
+            'estado': (cliente['estado'] ?? false) ? 1 : 0,
+            'idprestamos': int.tryParse(cliente['idprestamos'].toString()) ?? 0,
+          };
+        }).toList();
+
+        if (!mounted) return;
+
+        final bool exito = await _databaseServices.guardarRuta(
+            _rolSeleccionado ?? _preferences.idUser, ruta);
+
+        if (!mounted) return;
+
+        if (exito) {
+          SmartDialog.showToast("Ruta guardada correctamente");
+        } else {
+          throw Exception('Error al guardar la ruta');
+        }
+      } catch (e) {
+        debugPrint("Error al guardar la ruta: $e");
+        SmartDialog.showToast("Error al guardar la ruta: ${e.toString()}");
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
-      debugPrint("Ruta guardada exitosamente");
-    } catch (e) {
-      debugPrint("Error al guardar la ruta: $e");
-      SmartDialog.showToast("Error al guardar la ruta");
-    }
+    });
   }
 
   void _reiniciarEstados() {
+    if (!mounted) return;
     setState(() {
       for (var cliente in clientes) {
         cliente['estado'] = false;
@@ -206,6 +242,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
   }
 
   void _cambiarEstado(int index, bool value) {
+    if (!mounted) return;
     setState(() {
       clientes[index]['estado'] = value;
     });
@@ -213,12 +250,14 @@ class _RutaCobradorState extends State<RutaCobrador> {
   }
 
   void _onReorderStart(int index) {
+    if (!mounted) return;
     setState(() {
       _draggingIndex = index;
     });
   }
 
   void _onReorderEnd(int index) {
+    if (!mounted) return;
     setState(() {
       _draggingIndex = null;
     });
