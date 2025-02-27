@@ -1,7 +1,6 @@
 // ignore_for_file: unused_local_variable, prefer_interpolation_to_compose_strings
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:cobrosapp/config/routes/rutas.dart';
@@ -35,7 +34,6 @@ class _RutaCobradorState extends State<RutaCobrador> {
   List<Map<String, dynamic>> _roles = [];
   String? _rolSeleccionado;
   bool _isLoading = true;
-  bool _mounted = true;
 
   @override
   void initState() {
@@ -54,7 +52,6 @@ class _RutaCobradorState extends State<RutaCobrador> {
 
   @override
   void dispose() {
-    _mounted = false;
     _scrollController.dispose();
     super.dispose();
   }
