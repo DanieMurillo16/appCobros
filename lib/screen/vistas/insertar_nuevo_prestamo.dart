@@ -168,6 +168,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           WidgetTextField(
               identificador: "Identificación",
               hintText: "Numero de Documento del cliente",
+              maxLength: 10,
               keyboardType: TextInputType.number,
               enabled: true,
               controller: clienteIdentificacion,
@@ -239,6 +240,7 @@ class _NuevoPrestamoState extends BaseScreen<NuevoPrestamo> {
           WidgetTextField(
             identificador: "Direccion",
             hintText: "Barrio, Calle, Carrera",
+            maxLength: 30,
             keyboardType: TextInputType.streetAddress,
             icono: const Icon(Icons.location_city),
             controller: clienteDireccion,
