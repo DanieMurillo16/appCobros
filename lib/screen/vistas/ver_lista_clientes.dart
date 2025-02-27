@@ -365,7 +365,7 @@ if (cliente['ultimo_abono'] == null) {
                       fechaPrestamo.day == hoy.day;
     
     if (esMismoDia) {
-      return Colors.purple; // Préstamo nuevo de hoy
+      return ColoresApp.morado; // Préstamo nuevo de hoy
     }
     return ColoresApp.rojoLogo; // Préstamo sin pagos y no es de hoy
   }
