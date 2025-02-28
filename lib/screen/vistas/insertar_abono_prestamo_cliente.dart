@@ -629,6 +629,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
         'idprestamo': idPrestamo,
         'idempleado': idEmpleadoSeleccionado,
         'monto': montoSinFormato,
+        'cobro': _pref.cobro,
       });
 
       if (response.statusCode == 200) {

@@ -313,7 +313,10 @@ class Databaseservices {
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
     }
-    var url = Uri.parse(ApiConstants.listaClientesConPrestamos + idConsultado+'&cobro='+_pref.cobro);
+    var url = Uri.parse(ApiConstants.listaClientesConPrestamos +
+        idConsultado +
+        '&cobro=' +
+        _pref.cobro);
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -325,26 +328,42 @@ class Databaseservices {
   }
 
   Future<List<Map<String, dynamic>>> listaCajaCobradores(String cobro) async {
-    bool conectado = await Conexioninternet().isConnected();
-    if (!conectado) {
-      throw Exception('No tienes conexión a internet');
-    }
-
-    var url = Uri.parse("${ApiConstants.listaCajaCobradores}?cobro=$cobro");
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
-
-      if (jsonResponse['success'] == true) {
-        return List<Map<String, dynamic>>.from(jsonResponse['data']);
-      } else {
-        throw Exception(
-            jsonResponse['error'] ?? 'Error al cargar los cobradores');
+    try {
+      bool conectado = await Conexioninternet().isConnected();
+      if (!conectado) {
+        throw Exception('No tienes conexión a internet');
       }
-    } else {
-      throw Exception(
-          'Error al cargar la lista (Código ${response.statusCode})');
+
+      var url = Uri.parse("${ApiConstants.listaCajaCobradores}$cobro");
+
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = jsonDecode(response.body);
+        debugPrint('JSON decodificado: $jsonResponse');
+
+        if (jsonResponse['success'] == true && jsonResponse['data'] != null) {
+          // Verificar si data es una lista
+          final List<dynamic> dataList = jsonResponse['data'] as List<dynamic>;
+          debugPrint('Data como lista: $dataList');
+
+          // Convertir cada elemento a Map<String, dynamic>
+          final List<Map<String, dynamic>> resultado = dataList.map((item) {
+            return Map<String, dynamic>.from(item);
+          }).toList();
+
+          debugPrint('Resultado final: $resultado');
+          return resultado;
+        } else {
+          debugPrint('Error: data es null o success es false');
+          return [];
+        }
+      } else {
+        throw Exception('Error HTTP: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('Error en listaCajaCobradores: $e');
+      rethrow;
     }
   }
 
@@ -445,7 +464,7 @@ class Databaseservices {
       throw Exception('No tienes conexión a internet');
     }
     var url = Uri.parse(
-        "${ApiConstants.listaMovimientosCaja}$idConsultado&fc=$fecha");
+        "${ApiConstants.listaMovimientosCaja}$idConsultado&fc=$fecha&cobro=${_pref.cobro}");
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -496,8 +515,8 @@ class Databaseservices {
     if (!conectado) {
       throw Exception('No tienes conexión a internet');
     }
-    final url =
-        Uri.parse('${ApiConstants.verCajaEmpleado}$idConsultado&fecha=$fecha&cobro=${_pref.cobro}');
+    final url = Uri.parse(
+        '${ApiConstants.verCajaEmpleado}$idConsultado&fecha=$fecha&cobro=${_pref.cobro}');
     // Realizar la solicitud HTTP GET
     final response = await http.get(url);
     // Verificar el código de estado de la respuesta

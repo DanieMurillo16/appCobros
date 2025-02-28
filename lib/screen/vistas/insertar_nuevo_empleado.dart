@@ -93,10 +93,10 @@ class _RegistrarUsuarioState extends BaseScreen<RegistrarUsuario> {
       ),
       items: _roles
           .map<DropdownMenuItem<String>>((cliente) => DropdownMenuItem<String>(
-        value: cliente['idrol'], // Almacena idrol como valor
-        child:
-        Text(cliente['nombreCompleto']), // Muestra nombre del rol
-      ))
+                value: cliente['idrol'], // Almacena idrol como valor
+                child:
+                    Text(cliente['nombreCompleto']), // Muestra nombre del rol
+              ))
           .toList(),
       onChanged: (value) {
         setState(() {
@@ -107,35 +107,40 @@ class _RegistrarUsuarioState extends BaseScreen<RegistrarUsuario> {
   }
 
   Future<bool> insertarUsuarioNuevo(Map<String, dynamic> datos) async {
-    var url = Uri.parse(ApiConstants.insertarnuevoEmpleado);
-    var usuario = datos['nombre'].toString().substring(1, 4) +
-        Databaseservices().aleatorio().toString().substring(0, 5);
-    var contra = Databaseservices().aleatorio().toString();
-    var fecha = Databaseservices().obtenerFechaActual().toString();
-    var cobro = PreferenciasUsuario().cobro.toString();
-    final response = await http.post(
-      url,
-      body: {
-        //------------------- Insert persona
-        'idpe': datos['identificacion'],
-        'per_nom': datos['nombre'],
-        'per_ape': datos['apellido'],
-        'per_gen': "No definido",
-        'per_tel': datos['Telefono'],
-        'per_dir': datos['Direccion'],
-        'per_fecha_creacion': fecha,
-        'fk_roll': datos['rol'],
-        'fk_cobro': cobro,
-        //-------------------- Insert usuario
-        'usu_nom': usuario,
-        'usu_con': contra,
-      },
-    );
+    try {
+      var url = Uri.parse(ApiConstants.insertarnuevoEmpleado);
 
-    final respuesta = jsonDecode(response.body);
-    if (respuesta['success'] == true) {
-      return true;
-    } else {
+      // Crear usuario de forma segura
+      var nombre = datos['nombre'].toString();
+      var usuario =
+          nombre.length >= 3 ? nombre.substring(0, 3) : nombre.padRight(3, 'x');
+
+      usuario += Databaseservices().aleatorio().toString().substring(0, 5);
+      var contra = Databaseservices().aleatorio().toString();
+      var fecha = Databaseservices().obtenerFechaActual().toString();
+      var cobro = PreferenciasUsuario().cobro.toString();
+
+      final response = await http.post(
+        url,
+        body: {
+          'idpe': datos['identificacion'],
+          'per_nom': datos['nombre'],
+          'per_ape': datos['apellido'],
+          'per_gen': "No definido",
+          'per_tel': datos['Telefono'],
+          'per_dir': datos['Direccion'],
+          'per_fecha_creacion': fecha,
+          'fk_roll': datos['rol'],
+          'fk_cobro': cobro,
+          'usu_nom': usuario,
+          'usu_con': contra,
+        },
+      );
+
+      final respuesta = jsonDecode(response.body);
+      return respuesta['success'] == true;
+    } catch (e) {
+      debugPrint("Error al insertar usuario: $e");
       return false;
     }
   }
@@ -145,55 +150,50 @@ class _RegistrarUsuarioState extends BaseScreen<RegistrarUsuario> {
     _pref.ultimaPagina = rutaNavBarUsuarios;
     return Scaffold(
       backgroundColor: Colors.white,
-      floatingActionButton: SizedBox(
-        child: ElevatedButton(
-          style: ElevatedButton.styleFrom(
-            foregroundColor: Colors.white,
-            backgroundColor: ColoresApp.verde,
-          ),
-          onPressed: _isLoading
-              ? null // Deshabilita el botón si ya está cargando
-              : () async {
-            if (_formKey.currentState?.saveAndValidate() ?? false) {
-              setState(() {
-                _isLoading = true;
-              });
-              SmartDialog.showLoading(msg: "Creando Usuario");
-              final datosFormulario = _formKey.currentState!.value;
-              debugPrint(datosFormulario.toString());
-              Map<String, dynamic> datosPrestamo = {
-                "rol": _rolSeleccionado.toString(),
-                "identificacion": datosFormulario["Identificación"],
-                "nombre": datosFormulario["Nombre"],
-                "apellido": datosFormulario["Apellido"],
-                "Telefono": datosFormulario["Telefono"],
-                "Direccion": datosFormulario["Direccion"],
-              };
-              try {
-                bool exito = await insertarUsuarioNuevo(datosPrestamo);
-                if (exito) {
-                  SmartDialog.showToast("Usuario Registrado");
-                  SmartDialog.dismiss();
-                  _limpiarCampos();
-                  Navigator.pushReplacementNamed(
-                      context, rutaNavBarUsuarios);
-                } else {
-                  SmartDialog.dismiss();
-                  SmartDialog.showToast(
-                      "Error al registrar");
+      floatingActionButton: FloatingActionButton.extended(
+        label: const Text('Crear empleado'),
+        backgroundColor: ColoresApp.verde,
+        foregroundColor: ColoresApp.blanco,
+        onPressed: _isLoading
+            ? null // Deshabilita el botón si ya está cargando
+            : () async {
+                if (_formKey.currentState?.saveAndValidate() ?? false) {
+                  setState(() {
+                    _isLoading = true;
+                  });
+                  SmartDialog.showLoading(msg: "Creando Usuario");
+                  final datosFormulario = _formKey.currentState!.value;
+                  debugPrint(datosFormulario.toString());
+                  Map<String, dynamic> datosPrestamo = {
+                    "rol": _rolSeleccionado.toString(),
+                    "identificacion": datosFormulario["Identificacion"],
+                    "nombre": datosFormulario["Nombre"],
+                    "apellido": datosFormulario["Apellido"],
+                    "Telefono": datosFormulario["Telefono"],
+                    "Direccion": datosFormulario["Direccion"],
+                  };
+                  try {
+                    bool exito = await insertarUsuarioNuevo(datosPrestamo);
+                    if (exito) {
+                      SmartDialog.showToast("Usuario Registrado");
+                      SmartDialog.dismiss();
+                      _limpiarCampos();
+                      Navigator.pushReplacementNamed(
+                          context, rutaNavBarUsuarios);
+                    } else {
+                      SmartDialog.dismiss();
+                      SmartDialog.showToast("Error al registrar");
+                    }
+                  } catch (e) {
+                    SmartDialog.dismiss();
+                    debugPrint("Vista insertarnuevoEmpleado - Error: $e");
+                  } finally {
+                    setState(() {
+                      _isLoading = false;
+                    });
+                  }
                 }
-              } catch (e) {
-                SmartDialog.dismiss();
-                debugPrint("Vista insertarnuevoEmpleado - Error: $e");
-              } finally {
-                setState(() {
-                  _isLoading = false;
-                });
-              }
-            }
-          },
-          child: const Text("CREAR"),
-        ),
+              },
       ),
       appBar: const PreferredSize(
         preferredSize: Size.fromHeight(AppMedidas.medidaAppBarLargo),
@@ -217,8 +217,9 @@ class _RegistrarUsuarioState extends BaseScreen<RegistrarUsuario> {
                   child: botonListaClientes(),
                 ),
                 WidgetTextField(
-                    identificador: "Identificación",
+                    identificador: "Identificacion",
                     hintText: "Numero de Documento",
+                    maxLength: 10,
                     keyboardType: TextInputType.number,
                     controller: clienteIdentificacion,
                     icono: const Icon(Icons.badge),
@@ -276,6 +277,7 @@ class _RegistrarUsuarioState extends BaseScreen<RegistrarUsuario> {
                 WidgetTextField(
                   identificador: "Direccion",
                   hintText: "Barrio, Calle, Carrera",
+                  maxLength: 35,
                   keyboardType: TextInputType.streetAddress,
                   icono: const Icon(Icons.location_city),
                   controller: clienteDireccion,

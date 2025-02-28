@@ -36,7 +36,7 @@ class ApiConstants {
 
   //-----------------Inserciones
   static const String insertarAbonoPrestamoCliente =
-      '$baseUrl/InsertarAbonoPrestamoCliente.php';
+      '$baseUrl/InsertarAbonoPrestamoCliente2.php';
   static const String insertarnuevoPrestamo =
       '$baseUrl/InsertarNuevoPrestamo.php';
   static const String insertarnuevoPrestamo2 =
