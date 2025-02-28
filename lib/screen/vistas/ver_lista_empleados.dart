@@ -39,6 +39,7 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['success'] == true) {
+        debugPrint('Datos que llegaron: $data');
         return data['data'] ?? [];
       }
       return [];
@@ -118,7 +119,7 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
                               style: const TextStyle(color: ColoresApp.negro),
                             ),
                             Text(
-                              'Cargo: ${cliente['fk_roll'] == "2" ? "Cobrador" : cliente['fk_roll'] == '3' ? 'Supervisor' : cliente['fk_roll'] == '4' ? 'Administrador' : 'Otro'}',
+                              'Cargo: ${_obtenerNombreCargo(cliente['fk_roll'])}',
                               style: const TextStyle(color: ColoresApp.negro),
                             ),
                             GestureDetector(
@@ -232,5 +233,21 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
         },
       ),
     );
+  }
+
+  String _obtenerNombreCargo(dynamic roll) {
+    // Convertir a int para hacer la comparación
+    final rolNumero = int.tryParse(roll.toString());
+
+    switch (rolNumero) {
+      case 2:
+        return "Cobrador";
+      case 3:
+        return "Supervisor";
+      case 4:
+        return "Administrador";
+      default:
+        return "Otro (Rol: $roll)"; // Para depuración
+    }
   }
 }
