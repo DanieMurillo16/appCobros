@@ -39,7 +39,6 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       if (data['success'] == true) {
-        debugPrint('Datos que llegaron: $data');
         return data['data'] ?? [];
       }
       return [];
