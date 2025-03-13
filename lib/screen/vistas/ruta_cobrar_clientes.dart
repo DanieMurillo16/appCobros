@@ -14,6 +14,7 @@ import 'package:cobrosapp/screen/widgets/drawemenu.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../config/services/conexioninternet.dart';
+import '../widgets/estado_cliente.dart';
 import '../widgets/spinner.dart';
 
 class RutaCobrador extends StatefulWidget {
@@ -59,10 +60,11 @@ class _RutaCobradorState extends State<RutaCobrador> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados =
-          await _databaseServices.fetchEmpleados(_preferences.cargo, _preferences.cobro);
+      final empleados = await _databaseServices.fetchEmpleados(
+          _preferences.cargo, _preferences.cobro);
       if (!mounted) return;
-      setState(() {if (!mounted) return;
+      setState(() {
+        if (!mounted) return;
         _roles = empleados;
       });
     } catch (e) {
@@ -194,8 +196,6 @@ class _RutaCobradorState extends State<RutaCobrador> {
     _saveDebouncer?.cancel();
     _saveDebouncer = Timer(const Duration(milliseconds: 500), () async {
       try {
-        setState(() => _isLoading = true);
-
         final List<Map<String, dynamic>> ruta = clientes.map((cliente) {
           return {
             'fk_cliente': int.tryParse(cliente['idpersona'].toString()) ?? 0,
@@ -213,7 +213,11 @@ class _RutaCobradorState extends State<RutaCobrador> {
         if (!mounted) return;
 
         if (exito) {
-          SmartDialog.showToast("Ruta guardada correctamente");
+          // Usar un toast sutil en lugar de refrescar la pantalla
+          SmartDialog.showToast(
+            "Ruta guardada correctamente",
+            displayTime: const Duration(milliseconds: 1000),
+          );
         } else {
           throw Exception('Error al guardar la ruta');
         }
@@ -221,8 +225,9 @@ class _RutaCobradorState extends State<RutaCobrador> {
         debugPrint("Error al guardar la ruta: $e");
         SmartDialog.showToast("Error al guardar la ruta: ${e.toString()}");
       } finally {
-        if (mounted) {
-          setState(() => _isLoading = false);
+        // Cerrar cualquier diálogo que se haya mostrado
+        if (!_isLoading) {
+          SmartDialog.dismiss();
         }
       }
     });
@@ -234,14 +239,6 @@ class _RutaCobradorState extends State<RutaCobrador> {
       for (var cliente in clientes) {
         cliente['estado'] = false;
       }
-    });
-    _guardarOrden();
-  }
-
-  void _cambiarEstado(int index, bool value) {
-    if (!mounted) return;
-    setState(() {
-      clientes[index]['estado'] = value;
     });
     _guardarOrden();
   }
@@ -325,57 +322,22 @@ class _RutaCobradorState extends State<RutaCobrador> {
                     onReorderEnd: _onReorderEnd,
                     children: [
                       for (int index = 0; index < clientes.length; index++)
-                        Container(
+                        ClienteListItem(
                           key: ValueKey(
                               '${clientes[index]['idpersona']}_$index'),
-                          margin: const EdgeInsets.symmetric(
-                              vertical: 4.0, horizontal: 8.0),
-                          decoration: BoxDecoration(
-                            color: _draggingIndex == index
-                                ? ColoresApp.azulRey
-                                : ColoresApp.blanco,
-                            borderRadius: BorderRadius.circular(12.0),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: ColoresApp.grisClarito,
-                                spreadRadius: 2,
-                                blurRadius: 5,
-                                offset: Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                          child: ListTile(
-                            selectedColor: ColoresApp.azulRey,
-                            leading: Switch(
-                              activeColor: ColoresApp.verde,
-                              inactiveThumbColor: ColoresApp.rojo,
-                              value: clientes[index]['estado'] ?? false,
-                              onChanged: (value) =>
-                                  _cambiarEstado(index, value),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 8.0, horizontal: 16.0),
-                            title: Text(
-                              '${clientes[index]['per_nombre'].toString().toUpperCase()} ${clientes[index]['per_apellido'].toString().toUpperCase()}',
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  color: ColoresApp.verde,
-                                  icon: const Icon(Icons.add_box),
-                                  onPressed: () =>
-                                      _navegarAInsertarAbono(clientes[index]),
-                                ),
-                              ],
-                            ),
-                          ),
-                        )
+                          cliente: clientes[index],
+                          index: index,
+                          isDragging: _draggingIndex == index,
+                          onEstadoChanged: (index, value) {
+                            // Solo actualiza el valor en la lista sin llamar a setState
+                            clientes[index]['estado'] = value;
+                            // Opcionalmente, guarda en background sin mostrar indicadores
+                            _guardarSinRefrescar(index, value);
+                          },
+                          onAbonoTap: _navegarAInsertarAbono,
+                        ),
                     ],
                     onReorder: (oldIndex, newIndex) {
-                      // Limitar la distancia de arrastre
                       if (newIndex > clientes.length - 1) {
                         newIndex = clientes.length - 1;
                       } else if (newIndex < 0) {
@@ -444,6 +406,27 @@ class _RutaCobradorState extends State<RutaCobrador> {
         duration: const Duration(milliseconds: 50),
         curve: Curves.linear,
       );
+    }
+  }
+
+  // Agrega este nuevo método para guardar sin refrescar la vista
+  Future<void> _guardarSinRefrescar(int index, bool value) async {
+    try {
+      final cliente = clientes[index];
+      final Map<String, dynamic> rutaItem = {
+        'fk_cliente': int.tryParse(cliente['idpersona'].toString()) ?? 0,
+        'orden': index,
+        'estado': value ? 1 : 0,
+        'idprestamos': int.tryParse(cliente['idprestamos'].toString()) ?? 0,
+      };
+
+      // Opcional: guardar solo este elemento en lugar de toda la ruta
+      // await _databaseServices.guardarEstadoRutaItem(_rolSeleccionado ?? _preferences.idUser, rutaItem);
+
+      // O usar el método existente pero sin refrescar UI
+      _guardarOrden();
+    } catch (e) {
+      debugPrint("Error al actualizar estado: $e");
     }
   }
 }

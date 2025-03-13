@@ -98,6 +98,7 @@ class Databaseservices {
     }
     try {
       var url = Uri.parse(ApiConstants.verListadoReporteAbonosClientes);
+      debugPrint('Consutal Clientes');
       final respuesta = await http.post(url, body: {
         "idempleado": idUser,
         "fecha": fecha,
@@ -466,6 +467,7 @@ class Databaseservices {
     var url = Uri.parse(
         "${ApiConstants.listaMovimientosCaja}$idConsultado&fc=$fecha&cobro=${_pref.cobro}");
     final response = await http.get(url);
+    debugPrint('Consutal Gastos');
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> data = jsonDecode(response.body);

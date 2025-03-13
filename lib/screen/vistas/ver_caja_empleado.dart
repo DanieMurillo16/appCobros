@@ -144,7 +144,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+      final empleados =
+          await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados.isNotEmpty ? empleados : [];
       });
@@ -252,7 +253,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     return Scaffold(
       floatingActionButton: _pref.cargo == '4'
           ? FloatingActionButton.extended(
-              label: const Text('Cerrar Caja'),
+              label: const Text(''),
               icon: const Icon(Icons.lock),
               onPressed: () async {
                 if (!_puedeCerrarCaja) {
@@ -279,7 +280,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                       TextButton(
                         onPressed: () async {
                           final data = await Databaseservices()
-                              .cerrarCajaCobrador(_rolSeleccionado!, saldoCaja!,_pref.cobro,
+                              .cerrarCajaCobrador(
+                                  _rolSeleccionado!, saldoCaja!, _pref.cobro,
                                   descripcion: "cierre caja vcjd");
                           if (data['success'] == true) {
                             SmartDialog.showToast("Caja cerrada con éxito");
@@ -498,7 +500,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
 
     if (_datosMovimientos.isEmpty) {
       return const Expanded(
-        child:  Center(
+        child: Center(
           child: Text('No hay movimientos registrados hoy.'),
         ),
       );
@@ -525,7 +527,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
               ],
             ),
             trailing: SizedBox(
-              width: 120,
+              width: 130,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 mainAxisSize: MainAxisSize.min,
@@ -533,7 +535,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   Text(
                     FormatoMiles().formatearCantidad(movimiento['movi_valor']),
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 14,
                       color: colorValor,
                       fontWeight: FontWeight.bold,
                     ),
@@ -648,6 +650,23 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
     });
 
+    final clientes = _datosCancelados;
+    int totalPrestamos = clientes.length;
+
+    double totalsumaAbonos = clientes.fold(0.0, (sum, cliente) {
+      return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
+    });
+
+    double sumatotalDinero = totalsumaAbonos + sumaDinero;
+
+    final clientes1 = _datosPrestamos;
+    double sumaSeguros = clientes1.fold(0.0, (sum, cliente) {
+      double seguro =
+          double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+
+      return sum + seguro;
+    });
+
     return Expanded(
       flex: 7,
       child: SizedBox(
@@ -665,7 +684,12 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   Text(
-                    'Recogio: ${FormatoMiles().formatearCantidad(sumaDinero.toString())}',
+                    'Recogio: ${FormatoMiles().formatearCantidad(sumatotalDinero.toString())}',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Seguros: ${FormatoMiles().formatearCantidad(sumaSeguros.toString())}',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -866,7 +890,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     int totalPrestamos = clientes.length;
     int conSeguro = 0;
     int sinSeguro = 0;
-
     double sumaSeguros = clientes.fold(0.0, (sum, cliente) {
       double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
       if (seguro > 0) {
