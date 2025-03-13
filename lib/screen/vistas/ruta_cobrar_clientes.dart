@@ -14,7 +14,7 @@ import 'package:cobrosapp/screen/widgets/drawemenu.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 
 import '../../config/services/conexioninternet.dart';
-import '../widgets/estado_cliente.dart';
+import '../widgets/estado_cliente_ruta.dart';
 import '../widgets/spinner.dart';
 
 class RutaCobrador extends StatefulWidget {
@@ -216,7 +216,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
           // Usar un toast sutil en lugar de refrescar la pantalla
           SmartDialog.showToast(
             "Ruta guardada correctamente",
-            displayTime: const Duration(milliseconds: 1000),
+            displayTime: const Duration(milliseconds: 500),
           );
         } else {
           throw Exception('Error al guardar la ruta');

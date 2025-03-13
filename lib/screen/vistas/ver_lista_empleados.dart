@@ -11,11 +11,11 @@ import 'package:cobrosapp/config/services/databaseservices.dart';
 import 'package:cobrosapp/config/services/validacion_estado_usuario.dart';
 import 'package:cobrosapp/config/shared/peferences.dart';
 import 'package:cobrosapp/desing/app_medidas.dart';
-import 'package:cobrosapp/desing/coloresapp.dart';
 import 'package:cobrosapp/desing/textosapp.dart';
 import 'package:cobrosapp/screen/widgets/appbar.dart';
 import 'package:cobrosapp/screen/widgets/drawemenu.dart';
-import 'package:url_launcher/url_launcher.dart';
+
+import '../widgets/estado_empleado.dart';
 
 class EmpleadosLista extends StatefulWidget {
   const EmpleadosLista({super.key});
@@ -91,140 +91,24 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
               itemCount: clientes.length,
               itemBuilder: (context, index) {
                 final cliente = clientes[index];
-                return Column(
-                  children: [
-                    Card(
-                      elevation: 5,
-                      margin: const EdgeInsets.symmetric(
-                          vertical: 8, horizontal: 16),
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: ColoresApp.verde,
-                          child: Text(
-                            cliente['per_nombre'][0].toString().toUpperCase(),
-                            style: const TextStyle(color: ColoresApp.blanco),
-                          ),
-                        ),
-                        title: Text(
-                          '${cliente['per_nombre']} ${cliente['per_apellido']}',
-                          style: const TextStyle(color: ColoresApp.negro),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Divider(),
-                            Text(
-                              'Estado: ${cliente['usu_estado'].toString() == "1" ? "Activo" : "Inactivo"}',
-                              style: const TextStyle(color: ColoresApp.negro),
-                            ),
-                            Text(
-                              'Cargo: ${_obtenerNombreCargo(cliente['fk_roll'])}',
-                              style: const TextStyle(color: ColoresApp.negro),
-                            ),
-                            GestureDetector(
-                              onTap: () async {
-                                // Limpiamos el número de teléfono de espacios y caracteres especiales
-                                final phoneNumber = cliente['per_telefono']
-                                    .toString()
-                                    .replaceAll(RegExp(r'[^\d+]'), '');
+                return EmpleadoListItem(
+                  empleado: cliente,
+                  onEstadoChanged: (empleado, nuevoEstado) async {
+                    try {
+                      // Actualizar en la base de datos sin actualizar toda la vista
+                      await _actualizarEstadoEmpleado(
+                        empleado['usu_nombre'].toString(),
+                        nuevoEstado,
+                      );
 
-                                final Uri phoneUri =
-                                    Uri.parse('tel:+57$phoneNumber');
-                                try {
-                                  if (await canLaunchUrl(phoneUri)) {
-                                    await launchUrl(phoneUri,
-                                        mode: LaunchMode.externalApplication);
-                                  } else {
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              'No se pudo abrir el marcador telefónico'),
-                                          backgroundColor: Colors.red,
-                                        ),
-                                      );
-                                    }
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Error: ${e.toString()}'),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              child: Row(
-                                children: [
-                                  const Text(
-                                    'Teléfono: ',
-                                    style: TextStyle(color: ColoresApp.negro),
-                                  ),
-                                  Text(
-                                    '${cliente['per_telefono']}',
-                                    style: const TextStyle(
-                                      color: Colors.red,
-                                      decoration: TextDecoration.underline,
-                                      decorationColor: ColoresApp.rojoLogo,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              'Fecha de registro: ${cliente['per_fecha_creacion']}',
-                              style: const TextStyle(color: ColoresApp.negro),
-                            ),
-                            const Divider(),
-                            Text(
-                              'Usuario: ${cliente['usu_nombre']}',
-                              style: const TextStyle(color: ColoresApp.negro),
-                            ),
-                            Text(
-                              'Contra: ${cliente['us_contra']}',
-                              style: const TextStyle(color: ColoresApp.negro),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Switch(
-                              value: cliente['usu_estado'].toString() ==
-                                  "1", // Convertir explícitamente a String
-                              onChanged: (bool value) async {
-                                if (!mounted) {
-                                  return; // Agregar verificación de mounted
-                                }
-                                final nuevoEstado = value ? '1' : '0';
-                                try {
-                                  await Databaseservices()
-                                      .actualizarEstadoEmpleado(
-                                    cliente['usu_nombre'].toString(),
-                                    nuevoEstado,
-                                  );
-
-                                  if (!mounted) return;
-
-                                  setState(() {
-                                    cliente['usu_estado'] = nuevoEstado;
-                                  });
-                                  SmartDialog.showToast('Estado actualizado');
-                                } catch (e) {
-                                  SmartDialog.showToast(
-                                      'Error al actualizar estado: $e');
-                                  debugPrint('Error al actualizar estado: $e');
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
+                      // Actualizar la lista local sin llamar a setState
+                      empleado['usu_estado'] = nuevoEstado;
+                      SmartDialog.showToast('Estado actualizado');
+                    } catch (e) {
+                      SmartDialog.showToast('Error al actualizar estado: $e');
+                      debugPrint('Error al actualizar estado: $e');
+                    }
+                  },
                 );
               },
             );
@@ -234,19 +118,12 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
     );
   }
 
-  String _obtenerNombreCargo(dynamic roll) {
-    // Convertir a int para hacer la comparación
-    final rolNumero = int.tryParse(roll.toString());
-
-    switch (rolNumero) {
-      case 2:
-        return "Cobrador";
-      case 3:
-        return "Supervisor";
-      case 4:
-        return "Administrador";
-      default:
-        return "Otro (Rol: $roll)"; // Para depuración
-    }
+  Future<void> _actualizarEstadoEmpleado(
+      String nombreUsuario, String nuevoEstado) async {
+    if (!mounted) return;
+    await Databaseservices().actualizarEstadoEmpleado(
+      nombreUsuario,
+      nuevoEstado,
+    );
   }
 }
