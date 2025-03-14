@@ -9,10 +9,10 @@ class EmpleadoListItem extends StatefulWidget {
   final Function(Map<String, dynamic>, String) onEstadoChanged;
 
   const EmpleadoListItem({
-    Key? key,
+    super.key,
     required this.empleado,
     required this.onEstadoChanged,
-  }) : super(key: key);
+  });
 
   @override
   State<EmpleadoListItem> createState() => _EmpleadoListItemState();

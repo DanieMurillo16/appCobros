@@ -91,7 +91,7 @@ class _VerCajaGeneralState extends BaseScreen<VerCajaGeneral> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => HistorialCierres(
-                          idPersona: cliente['idpersona'],
+                          idPersona: cliente['idpersona'].toString(),
                         ),
                       ),
                     );
