@@ -22,6 +22,7 @@ import 'package:http/http.dart' as http;
 import 'package:cobrosapp/screen/widgets/spinner.dart';
 import 'package:sizer/sizer.dart';
 
+import '../widgets/floatingboton_cajaempleado.dart';
 import 'caja/car_movimientos.dart';
 
 // Primero, agrega esta variable al inicio de la clase _CajaCuentasState
@@ -101,6 +102,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           ),
         );
       }
+      rethrow; // Re-lanzar el error para que sea manejado por el .catchError()
     } finally {
       if (mounted) {
         setState(() {
@@ -252,50 +254,20 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     _pref.ultimaPagina = rutaCaja;
     return Scaffold(
       floatingActionButton: _pref.cargo == '4'
-          ? FloatingActionButton.extended(
-              label: const Text(''),
-              icon: const Icon(Icons.lock),
-              onPressed: () async {
-                if (!_puedeCerrarCaja) {
-                  SmartDialog.showToast(
-                      'Seleccione un empleado y fecha primero');
-                  return;
-                }
-                final saldoCaja = await _futureCaja; // Obtener saldo de caja
-                showDialog(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text("Cerrar Caja, verificar datos"),
-                    content: Text(
-                      "Empleado: ${_nombreEmpleadoSeleccionado ?? 'No seleccionado'}\n"
-                      "ID Empleado: ${_rolSeleccionado ?? 'N/A'}\n"
-                      "Saldo de Caja: \$$saldoCaja\n"
-                      "¿Desea cerrar caja?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("Cancelar"),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          final data = await Databaseservices()
-                              .cerrarCajaCobrador(
-                                  _rolSeleccionado!, saldoCaja!, _pref.cobro,
-                                  descripcion: "cierre caja vcjd");
-                          if (data['success'] == true) {
-                            SmartDialog.showToast("Caja cerrada con éxito");
-                            Navigator.pop(context);
-                          } else {
-                            SmartDialog.showToast(
-                                data['error'] ?? 'Error al insertar');
-                          }
-                        },
-                        child: const Text("Si, Cerrar"),
-                      ),
-                    ],
-                  ),
-                );
+          ? BotonFlotanteCierreCaja(
+              rolSeleccionado: _rolSeleccionado,
+              nombreEmpleadoSeleccionado: _nombreEmpleadoSeleccionado,
+              fecha: fecha.text,
+              cobro: _pref.cobro,
+              cajaDetalles: _obtenerDetallesCaja(),
+              futureCaja: _futureCaja,
+              puedeCerrarCaja: _puedeCerrarCaja,
+              onCajaCerrada: () {
+                // Acción a realizar después de cerrar caja (opcional)
+                setState(() {
+                  _futureCaja = _calcularTotalRecaudado(context);
+                  _cargarTodosDatos();
+                });
               },
             )
           : null,
@@ -332,10 +304,25 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                         color: ColoresApp.rojo,
                         icon: const Icon(Icons.search),
                         onPressed: () {
+                          // Mostrar indicador de carga
+                          SmartDialog.showLoading(msg: "Cargando datos...");
+
                           setState(() {
                             _futureCaja = _calcularTotalRecaudado(context);
                           });
-                          _cargarTodosDatos();
+
+                          // Cargar datos y ocultar el indicador cuando termine
+                          _cargarTodosDatos().then((_) {
+                            SmartDialog.dismiss();
+                            // Mostrar un toast breve para confirmar que se cargaron los datos
+                            SmartDialog.showToast(
+                              "Datos actualizados",
+                              displayTime: const Duration(milliseconds: 1200),
+                            );
+                          }).catchError((error) {
+                            SmartDialog.dismiss();
+                            SmartDialog.showToast("Error al cargar: $error");
+                          });
                         },
                       ),
                     ),
@@ -573,9 +560,14 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget encabezaCaja() {
+    final saldoCaja = calcularCaja();
+
+    // Obtener los valores de cálculo para el diálogo
+    final cajaDetalles = _obtenerDetallesCaja();
+
     return Container(
       width: double.infinity,
-      height: 13.h,
+      height: 15.h,
       padding: const EdgeInsets.all(10),
       decoration: const BoxDecoration(
         color: ColoresApp.blanco,
@@ -584,43 +576,358 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           bottomRight: Radius.circular(20),
         ),
       ),
-      child: FutureBuilder<String>(
-        future: _futureCaja,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text('0'));
-          } else {
-            final totalCaja = snapshot.data!;
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 10),
-                const Text(
-                  "Saldo caja:",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontFamily: 'poppins',
-                    fontWeight: FontWeight.bold,
-                  ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                "Saldo caja:",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontFamily: 'poppins',
+                  fontWeight: FontWeight.bold,
                 ),
-                FormatoNumero(
-                  numero: totalCaja,
-                  color: ColoresApp.negro,
-                  fontSize: 25,
-                  fontSize2: 10,
+              ),
+              IconButton(
+                icon: const Icon(
+                  Icons.info_outline,
+                  color: ColoresApp.rojoLogo,
+                  size: 24,
                 ),
-                const Divider(),
-              ],
-            );
-          }
-        },
+                onPressed: () => _mostrarDialogoDetalleCaja(cajaDetalles),
+                tooltip: 'Detalles del cálculo',
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ],
+          ),
+          FormatoNumero(
+            numero: saldoCaja,
+            color: ColoresApp.negro,
+            fontSize: 25,
+            fontSize2: 10,
+          ),
+          const Divider(),
+        ],
       ),
     );
+  }
+
+// Método para obtener los detalles del cálculo de caja
+  Map<String, dynamic> _obtenerDetallesCaja() {
+    // 1. Cálculos de entradas
+    final abonos = _datosClientes;
+    double totalAbonosDiario = abonos.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
+    });
+
+    final clientesCancelados = _datosCancelados;
+    double totalSumaCancelados = clientesCancelados.fold(0.0, (sum, cliente) {
+      return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
+    });
+
+    final datosPrestamo= _datosPrestamos;
+    double totalSumaDineroPrestado =
+        datosPrestamo.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
+    });
+
+    final clientesPrestamos = _datosPrestamos;
+    double totalSumaSeguros = clientesPrestamos.fold(0.0, (sum, cliente) {
+      double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+      return sum + seguro;
+    });
+
+    // 2. Cálculos de movimientos (ingresos y gastos)
+    double totalIngresos = _datosMovimientos.fold(0.0, (sum, movimiento) {
+      if (movimiento['tipoMovimiento'] == 1) {
+        return sum +
+            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
+      }
+      return sum;
+    });
+
+    double totalGastos = _datosMovimientos.fold(0.0, (sum, movimiento) {
+      if (movimiento['tipoMovimiento'] == 2) {
+        return sum +
+            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
+      }
+      return sum;
+    });
+
+    // 3. Cálculo final del saldo de caja
+    double totalEntradas = totalAbonosDiario +
+        totalSumaCancelados +
+        totalSumaSeguros +
+        totalIngresos;
+    double totalSalidas = totalSumaDineroPrestado + totalGastos;
+    double saldoCaja = totalEntradas - totalSalidas;
+
+    return {
+      'abonosDiarios': totalAbonosDiario,
+      'cancelados': totalSumaCancelados,
+      'seguros': totalSumaSeguros,
+      'ingresos': totalIngresos,
+      'totalEntradas': totalEntradas,
+      'prestamos': totalSumaDineroPrestado,
+      'gastos': totalGastos,
+      'totalSalidas': totalSalidas,
+      'saldoCaja': saldoCaja,
+    };
+  }
+
+// Método para mostrar el diálogo con detalles
+  void _mostrarDialogoDetalleCaja(Map<String, dynamic> detalles) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20.0),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Detalles del Saldo de Caja',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: ColoresApp.rojoLogo,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+
+                // Sección de Entradas
+                _seccionDetalles(
+                  'ENTRADAS',
+                  ColoresApp.verde,
+                  [
+                    {
+                      'concepto': 'Abonos diarios',
+                      'valor': detalles['abonosDiarios']
+                    },
+                    {'concepto': 'Cancelados', 'valor': detalles['cancelados']},
+                    {'concepto': 'Seguros', 'valor': detalles['seguros']},
+                    {'concepto': 'Ingresos', 'valor': detalles['ingresos']},
+                  ],
+                  total: {
+                    'concepto': 'Total Entradas',
+                    'valor': detalles['totalEntradas']
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Sección de Salidas
+                _seccionDetalles(
+                  'SALIDAS',
+                  ColoresApp.rojo,
+                  [
+                    {'concepto': 'Préstamos', 'valor': detalles['prestamos']},
+                    {'concepto': 'Gastos', 'valor': detalles['gastos']},
+                  ],
+                  total: {
+                    'concepto': 'Total Salidas',
+                    'valor': detalles['totalSalidas']
+                  },
+                ),
+
+                const SizedBox(height: 16),
+
+                // Saldo Final
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: ColoresApp.azulRey,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'SALDO FINAL',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: ColoresApp.blanco,
+                        ),
+                      ),
+                      Text(
+                        FormatoMiles().formatearCantidad(
+                            detalles['saldoCaja'].toString()),
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: ColoresApp.blanco,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Botón Cerrar
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  style: TextButton.styleFrom(
+                    backgroundColor: ColoresApp.rojoLogo,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 10),
+                  ),
+                  child: const Text(
+                    'Cerrar',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Widget auxiliar para crear secciones en el diálogo
+  Widget _seccionDetalles(
+      String titulo, Color color, List<Map<String, dynamic>> items,
+      {required Map<String, dynamic> total}) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            titulo,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          const Divider(height: 16),
+          ...items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(item['concepto'],
+                        style: const TextStyle(fontSize: 14)),
+                    Text(
+                      FormatoMiles()
+                          .formatearCantidad(item['valor'].toString()),
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              )),
+          const Divider(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                total['concepto'],
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                FormatoMiles().formatearCantidad(total['valor'].toString()),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String calcularCaja() {
+    // 1. Cálculos de entradas que ya tienes
+    final abonos = _datosClientes;
+    double totalAbonosDiario = abonos.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
+    });
+
+    final clientesCancelados = _datosCancelados;
+    double totalSumaCancelados = clientesCancelados.fold(0.0, (sum, cliente) {
+      return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
+    });
+
+    final datosPrestamo = _datosPrestamos;
+    double totalSumaDineroPrestado = datosPrestamo.fold(0.0, (sum, cliente) {
+      return sum +
+          (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
+    });
+
+    final clientesPrestamos = _datosPrestamos;
+    double totalSumaSeguros = clientesPrestamos.fold(0.0, (sum, cliente) {
+      double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+      return sum + seguro;
+    });
+
+    // 2. Cálculos de movimientos (ingresos y gastos)
+    double totalIngresos = _datosMovimientos.fold(0.0, (sum, movimiento) {
+      if (movimiento['tipoMovimiento'] == 1) {
+        // Ingreso
+        return sum +
+            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
+      }
+      return sum;
+    });
+
+    double totalGastos = _datosMovimientos.fold(0.0, (sum, movimiento) {
+      if (movimiento['tipoMovimiento'] == 2) {
+        // Gasto
+        return sum +
+            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
+      }
+      return sum;
+    });
+    debugPrint(
+        'Total prestado: $totalSumaDineroPrestado'); // Imprimir el total de gastos en la consola
+
+    // 3. Cálculo final del saldo de caja
+    double totalEntradas = totalAbonosDiario +
+        totalSumaCancelados +
+        totalSumaSeguros +
+        totalIngresos;
+    double totalSalidas = totalSumaDineroPrestado + totalGastos;
+    double saldoCaja = totalEntradas - totalSalidas;
+
+    // 5. Devolver el saldo de caja formateado
+    return saldoCaja.toString();
   }
 
   Widget listadoReporteAbonosClientes() {
@@ -661,8 +968,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
 
     final clientes1 = _datosPrestamos;
     double sumaSeguros = clientes1.fold(0.0, (sum, cliente) {
-      double seguro =
-          double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
+      double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
 
       return sum + seguro;
     });
@@ -685,11 +991,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   ),
                   Text(
                     'Recogio: ${FormatoMiles().formatearCantidad(sumatotalDinero.toString())}',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'Seguros: ${FormatoMiles().formatearCantidad(sumaSeguros.toString())}',
                     style: const TextStyle(
                         fontSize: 18, fontWeight: FontWeight.bold),
                   ),
@@ -899,7 +1200,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       }
       return sum + seguro;
     });
-
+    // Sumar la cantidad total de dinero prestado
     double sumaDinero = clientes.fold(0.0, (sum, cliente) {
       return sum +
           (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
