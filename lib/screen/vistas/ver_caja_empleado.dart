@@ -72,24 +72,51 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
         throw Exception('No hay conexión a internet');
       }
 
-      await Future.wait([
-        _cargarDatosConRetry(() => _consultarListadoReporteAbonosClientes()),
-        _cargarDatosConRetry(() => fetchListaPrestamos()),
-        _cargarDatosConRetry(() => fetchListaCancelados()),
-        _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
-              _rolSeleccionado ?? _pref.idUser,
-              fecha.text,
-            )),
-      ]).then((futures) {
-        if (mounted) {
-          setState(() {
-            _datosClientes = futures[0] as List<Map<String, dynamic>>;
-            _datosPrestamos = futures[1];
-            _datosCancelados = futures[2];
-            _datosMovimientos = futures[3] as List<Map<String, dynamic>>;
-          });
-        }
-      });
+      // Cargar solo los datos necesarios según el filtro activo
+      List<Future> futuros = [];
+
+      if (_mostrarClientes || _botonActivo == BotonActivo.ninguno) {
+        futuros.add(_cargarDatosConRetry(
+            () => _consultarListadoReporteAbonosClientes()));
+      }
+
+      if (_mostrarPrestamos || _botonActivo == BotonActivo.ninguno) {
+        futuros.add(_cargarDatosConRetry(() => fetchListaPrestamos()));
+      }
+
+      if (_mostrarCancelados || _botonActivo == BotonActivo.ninguno) {
+        futuros.add(_cargarDatosConRetry(() => fetchListaCancelados()));
+      }
+
+      // Siempre cargar los movimientos para el cálculo de caja
+      futuros.add(
+          _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
+                _rolSeleccionado ?? _pref.idUser,
+                fecha.text,
+              )));
+
+      final resultados = await Future.wait(futuros);
+
+      if (mounted) {
+        // En el setState dentro de _cargarTodosDatos()
+        setState(() {
+          int indice = 0;
+          if (_mostrarClientes || _botonActivo == BotonActivo.ninguno) {
+            // Asignar, no añadir
+            _datosClientes = resultados[indice++] as List<Map<String, dynamic>>;
+          }
+          if (_mostrarPrestamos || _botonActivo == BotonActivo.ninguno) {
+            // Asignar, no añadir
+            _datosPrestamos = resultados[indice++];
+          }
+          if (_mostrarCancelados || _botonActivo == BotonActivo.ninguno) {
+            // Asignar, no añadir
+            _datosCancelados = resultados[indice++];
+          }
+          // Asignar, no añadir
+          _datosMovimientos = resultados.last as List<Map<String, dynamic>>;
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -102,7 +129,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           ),
         );
       }
-      rethrow; // Re-lanzar el error para que sea manejado por el .catchError()
+      rethrow;
     } finally {
       if (mounted) {
         setState(() {
@@ -148,10 +175,13 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     try {
       final empleados =
           await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+      if (!mounted) return;
+
       setState(() {
         _roles = empleados.isNotEmpty ? empleados : [];
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error al cargar empleados: $e")),
       );
@@ -250,6 +280,11 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   @override
+  void dispose() {
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     _pref.ultimaPagina = rutaCaja;
     return Scaffold(
@@ -303,26 +338,45 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                       child: IconButton(
                         color: ColoresApp.rojo,
                         icon: const Icon(Icons.search),
-                        onPressed: () {
+                        // Modifica el método onPressed del botón de búsqueda
+                        // Modifica el método onPressed del botón de búsqueda
+                        onPressed: () async {
                           // Mostrar indicador de carga
                           SmartDialog.showLoading(msg: "Cargando datos...");
 
+                          // IMPORTANTE: Reiniciar todas las listas de datos antes de cargar nuevos
                           setState(() {
+                            _datosClientes = [];
+                            _datosPrestamos = [];
+                            _datosCancelados = [];
+                            _datosMovimientos = [];
+                            _isLoading = true;
+
+                            // Actualizar la fuente de datos para el cálculo
                             _futureCaja = _calcularTotalRecaudado(context);
                           });
 
-                          // Cargar datos y ocultar el indicador cuando termine
-                          _cargarTodosDatos().then((_) {
-                            SmartDialog.dismiss();
-                            // Mostrar un toast breve para confirmar que se cargaron los datos
+                          try {
+                            // Cargar datos frescos
+                            await _cargarTodosDatos();
+
+                            // Mostrar mensaje de éxito
                             SmartDialog.showToast(
                               "Datos actualizados",
                               displayTime: const Duration(milliseconds: 1200),
                             );
-                          }).catchError((error) {
-                            SmartDialog.dismiss();
+                          } catch (error) {
+                            // Manejar errores
                             SmartDialog.showToast("Error al cargar: $error");
-                          });
+                          } finally {
+                            // Asegurar que siempre se termine el estado de carga
+                            if (mounted) {
+                              setState(() {
+                                _isLoading = false;
+                              });
+                              SmartDialog.dismiss();
+                            }
+                          }
                         },
                       ),
                     ),
@@ -392,14 +446,18 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                onPressed: () {
+                onPressed: () async {
+                  if (_isLoading) return;
                   setState(() {
                     _botonActivo = BotonActivo.clientes;
                     _mostrarClientes = true;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = false;
+                    _cargarAbonos = true;
                   });
-                  _buscarAbonos();
+                  if (_datosClientes.isEmpty) {
+                    _cargarTodosDatos();
+                  }
                 },
                 child: const Text("Clientes",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -416,13 +474,19 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   ),
                 ),
                 onPressed: () {
+                  if (_isLoading) return;
                   setState(() {
                     _botonActivo = BotonActivo.gastos;
                     _mostrarClientes = false;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = false;
+                    _cargarAbonos = true; // Añadir esto para mostrar los datos
                   });
-                  _buscarAbonos();
+
+                  // No es necesario recargar datos si ya están disponibles
+                  if (_datosMovimientos.isEmpty) {
+                    _cargarTodosDatos();
+                  }
                 },
                 child: const Text("Gastos",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -439,13 +503,19 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   ),
                 ),
                 onPressed: () {
+                  if (_isLoading) return;
+
                   setState(() {
                     _botonActivo = BotonActivo.prestamos;
                     _mostrarClientes = false;
                     _mostrarPrestamos = true;
                     _mostrarCancelados = false;
                   });
-                  _buscarAbonos();
+
+                  // No es necesario recargar datos si ya están disponibles
+                  if (_datosPrestamos.isEmpty) {
+                    _cargarTodosDatos();
+                  }
                 },
                 child: const Text("Prestamos",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -462,13 +532,19 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                   ),
                 ),
                 onPressed: () {
+                  if (_isLoading) return;
+
                   setState(() {
                     _botonActivo = BotonActivo.cancelados;
                     _mostrarClientes = false;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = true;
                   });
-                  _buscarAbonos();
+
+                  // No es necesario recargar datos si ya están disponibles
+                  if (_datosCancelados.isEmpty) {
+                    _cargarTodosDatos();
+                  }
                 },
                 child: const Text("Cancelados",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -631,9 +707,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
     });
 
-    final datosPrestamo= _datosPrestamos;
-    double totalSumaDineroPrestado =
-        datosPrestamo.fold(0.0, (sum, cliente) {
+    final datosPrestamo = _datosPrestamos;
+    double totalSumaDineroPrestado = datosPrestamo.fold(0.0, (sum, cliente) {
       return sum +
           (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
     });

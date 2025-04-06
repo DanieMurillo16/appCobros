@@ -23,7 +23,7 @@ class ClienteListItem extends StatefulWidget {
 }
 
 class _ClienteListItemState extends State<ClienteListItem> {
-  late bool _estado;
+  bool _estado = false;
 
   @override
   void initState() {
@@ -34,8 +34,11 @@ class _ClienteListItemState extends State<ClienteListItem> {
   @override
   void didUpdateWidget(ClienteListItem oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Esta línea es crucial: actualiza el estado local cuando cambia desde fuera
     if (oldWidget.cliente['estado'] != widget.cliente['estado']) {
-      _estado = widget.cliente['estado'] ?? false;
+      setState(() {
+        _estado = widget.cliente['estado'] ?? false;
+      });
     }
   }
 
@@ -69,7 +72,7 @@ class _ClienteListItemState extends State<ClienteListItem> {
           },
         ),
         contentPadding: const EdgeInsets.symmetric(
-          vertical: 8.0, 
+          vertical: 8.0,
           horizontal: 16.0,
         ),
         title: Text(

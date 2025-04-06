@@ -235,12 +235,25 @@ class _RutaCobradorState extends State<RutaCobrador> {
 
   void _reiniciarEstados() {
     if (!mounted) return;
-    setState(() {
-      for (var cliente in clientes) {
-        cliente['estado'] = false;
-      }
-    });
+
+    // Actualizar el estado de todos los clientes
+    for (var cliente in clientes) {
+      cliente['estado'] = false;
+    }
+
+    // Guardar los cambios en la base de datos sin actualizar la UI completamente
     _guardarOrden();
+
+    // Forzar reconstrucción completa de la lista
+    setState(() {
+      // La llamada vacía a setState fuerza la reconstrucción
+    });
+
+    // Mostrar feedback al usuario
+    SmartDialog.showToast(
+      "Estados reiniciados",
+      displayTime: const Duration(milliseconds: 800),
+    );
   }
 
   void _onReorderStart(int index) {
@@ -324,7 +337,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
                       for (int index = 0; index < clientes.length; index++)
                         ClienteListItem(
                           key: ValueKey(
-                              '${clientes[index]['idpersona']}_$index'),
+                              '${clientes[index]['idpersona']}_${clientes[index]['estado']}_$index'),
                           cliente: clientes[index],
                           index: index,
                           isDragging: _draggingIndex == index,
