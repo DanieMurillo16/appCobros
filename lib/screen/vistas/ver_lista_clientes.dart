@@ -354,7 +354,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
               const SizedBox(width: 10),
               _indicadorColor(
                 color: Colors.orange,
-                texto: '3-5 días',
+                texto: '+3 días',
               ),
               const SizedBox(width: 10),
               _indicadorColor(
@@ -394,6 +394,22 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   }
 }
 
+// Función para contar días laborables (sin domingos)
+int _calcularDiasLaborables(DateTime inicio, DateTime fin) {
+  int dias = 0;
+  DateTime actual = DateTime(inicio.year, inicio.month, inicio.day);
+
+  while (actual.isBefore(fin) || actual.isAtSameMomentAs(fin)) {
+    // Domingo = 7 en DateTime weekday
+    if (actual.weekday != 7) {
+      dias++;
+    }
+    actual = actual.add(const Duration(days: 1));
+  }
+
+  return dias;
+}
+
 class ClienteCard extends StatelessWidget {
   final Map<String, dynamic> cliente;
   final VoidCallback onPressed;
@@ -405,113 +421,154 @@ class ClienteCard extends StatelessWidget {
   });
 
   Color _obtenerColorAvatar() {
-    if (cliente['ultimo_abono'] == null) {
-      // Verificar si es un préstamo nuevo (de hoy)
-      final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
-      final hoy = DateTime.now();
-
-      // Comparar solo fecha sin hora
-      final esMismoDia = fechaPrestamo.year == hoy.year &&
-          fechaPrestamo.month == hoy.month &&
-          fechaPrestamo.day == hoy.day;
-
-      if (esMismoDia) {
-        return ColoresApp.morado; // Préstamo nuevo de hoy
-      }
-      return ColoresApp.rojoLogo; // Préstamo sin pagos y no es de hoy
-    }
-
-    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+    // Obtener fechas y datos básicos
+    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
-    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
     final tipoPrestamo =
         int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
-    // Definir límites según tipo de préstamo
-    int limiteModerado = 0;
-    int limiteAlto = 0;
+    final totalAbonosRealizados =
+        int.tryParse(cliente['cantidad_cuotas'].toString()) ?? 0;
+
+    // Verificar si es un préstamo nuevo (de hoy)
+    final esMismoDia = fechaPrestamo.year == hoy.year &&
+        fechaPrestamo.month == hoy.month &&
+        fechaPrestamo.day == hoy.day;
+
+    // Si es préstamo de hoy, siempre es morado (nuevo)
+    if (esMismoDia) {
+      return ColoresApp.morado; // Préstamo nuevo de hoy
+    }
+
+    // Calcular días laborables transcurridos (excluyendo domingos)
+    final diasLaborablesTranscurridos =
+        _calcularDiasLaborables(fechaPrestamo, hoy);
+
+    // Definir intervalo según tipo de préstamo
+    int intervaloPago;
 
     switch (tipoPrestamo) {
-      case 1: // Diario
-        limiteModerado = 3;
-        limiteAlto = 5;
+      case 1: // Diario (pago de lunes a sábado)
+        intervaloPago = 1;
         break;
       case 2: // Semanal
-        limiteModerado = 8;
-        limiteAlto = 10;
+        intervaloPago =
+            6; // 7 días normales - 1 domingo = 6 días laborables por semana
         break;
       case 3: // Quincenal
-        limiteModerado = 15;
-        limiteAlto = 17;
+        intervaloPago =
+            13; // 15 días normales - 2 domingos = 13 días laborables
         break;
       default:
-        limiteModerado = 3;
-        limiteAlto = 5;
+        intervaloPago = 1;
     }
 
-    if (diasTranscurridos > limiteAlto) {
-      return ColoresApp.rojoLogo;
-    } else if (diasTranscurridos > limiteModerado) {
-      return Colors.orange;
+    // Calcular cuántos pagos debería haber realizado ya (basado en días laborables)
+    int abonosEsperados = (diasLaborablesTranscurridos / intervaloPago).ceil();
+
+    // Ajuste para préstamos nuevos (1-2 días laborables)
+    if (cliente['ultimo_abono'] == null &&
+        diasLaborablesTranscurridos <= 2 &&
+        abonosEsperados <= 1) {
+      return ColoresApp.verde; // verde para préstamos recientes sin abonos aún
     }
-    return ColoresApp.verde;
+
+    // Si no hay pagos registrados y debería haber al menos uno (caso general)
+    if (cliente['ultimo_abono'] == null && abonosEsperados > 0) {
+      // Graduamos el color según los días laborables transcurridos
+      if (abonosEsperados <= 3) {
+        return Colors.orange; // 1-3 cuotas sin pagar
+      } else {
+        return ColoresApp.rojoLogo; // 4+ cuotas sin pagar
+      }
+    }
+
+    // Calcular cuántos pagos faltan
+    int abonosFaltantes = abonosEsperados - totalAbonosRealizados;
+
+    // Lógica de colores según los umbrales de abonosFaltantes
+    if (abonosFaltantes < 2) {
+      return ColoresApp.verde; // Al día, adelantado o solo debe 1 cuota
+    } else if (abonosFaltantes >= 2 && abonosFaltantes <= 3) {
+      return Colors.orange; // 2-3 cuotas atrasadas (amarillo-naranja)
+    } else if (abonosFaltantes >= 4 && abonosFaltantes <= 6) {
+      return ColoresApp.rojo; // 4-6 cuotas atrasadas (rojo)
+    } else {
+      return ColoresApp.rojoLogo; // Más de 6 cuotas
+    }
   }
 
   String _obtenerMensajeMora() {
-    if (cliente['ultimo_abono'] == null) {
-      final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
-      final hoy = DateTime.now();
-
-      final esMismoDia = fechaPrestamo.year == hoy.year &&
-          fechaPrestamo.month == hoy.month &&
-          fechaPrestamo.day == hoy.day;
-
-      if (esMismoDia) {
-        return 'Préstamo nuevo de hoy';
-      }
-      return 'Sin pagos registrados (desde ${cliente['pres_fecha']})';
-    }
-
-    final ultimoAbono = DateTime.parse(cliente['ultimo_abono']);
+    // Obtener fechas y datos básicos
+    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
-    final diasTranscurridos = hoy.difference(ultimoAbono).inDays;
     final tipoPrestamo =
         int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
+    final totalAbonosRealizados =
+        int.tryParse(cliente['cantidad_cuotas'].toString()) ?? 0;
+
+    // Verificar si es un préstamo nuevo (de hoy)
+    final esMismoDia = fechaPrestamo.year == hoy.year &&
+        fechaPrestamo.month == hoy.month &&
+        fechaPrestamo.day == hoy.day;
+
+    if (esMismoDia) {
+      return 'Préstamo nuevo de hoy';
+    }
 
     // Determinar el período de pago según el tipo
     String periodoPago = '';
-    int diasLimite = 0;
+    int intervaloPago = 0;
 
     switch (tipoPrestamo) {
       case 1:
         periodoPago = 'diario';
-        diasLimite = 1;
+        intervaloPago = 1;
         break;
       case 2:
         periodoPago = 'semanal';
-        diasLimite = 8;
+        intervaloPago = 6;
         break;
       case 3:
         periodoPago = 'quincenal';
-        diasLimite = 15;
+        intervaloPago = 13;
         break;
       default:
         periodoPago = 'diario';
-        diasLimite = 1;
+        intervaloPago = 1;
     }
 
-    if (diasTranscurridos <= 0) {
+    // Calcular cuántos días han pasado desde que se otorgó el préstamo
+    final diasTranscurridos = _calcularDiasLaborables(fechaPrestamo, hoy);
+
+    // Calcular cuántos pagos debería haber realizado ya
+    int abonosEsperados = (diasTranscurridos / intervaloPago).ceil();
+
+    // *** NUEVA VALIDACIÓN: Préstamo reciente (1-2 días) sin abonos ***
+    if (cliente['ultimo_abono'] == null &&
+        diasTranscurridos <= 2 &&
+        abonosEsperados <= 1) {
+      return 'Préstamo reciente ($diasTranscurridos día${diasTranscurridos > 1 ? "s" : ""}): Debe 1 cuota (pago $periodoPago)';
+    }
+
+    // Si no hay abonos registrados
+    if (cliente['ultimo_abono'] == null) {
+      return 'Sin pagos registrados: debe $abonosEsperados cuota${abonosEsperados > 1 ? "s" : ""} (pago $periodoPago)';
+    }
+
+    // Calcular cuántos pagos faltan
+    int abonosFaltantes = abonosEsperados - totalAbonosRealizados;
+
+    if (abonosFaltantes <= 0) {
+      if (abonosFaltantes < 0) {
+        // Adelantado en pagos
+        return 'Cliente adelantado en ${-abonosFaltantes} cuota${-abonosFaltantes > 1 ? "s" : ""} (pago $periodoPago)';
+      }
       return 'Al día (pago $periodoPago)';
+    } else if (abonosFaltantes == 1) {
+      return 'Debe 1 cuota (pago $periodoPago)';
+    } else {
+      return 'Debe $abonosFaltantes cuotas (pago $periodoPago)';
     }
-
-    if (diasTranscurridos < diasLimite) {
-      return 'Faltan ${diasLimite - diasTranscurridos} días para el próximo pago ($periodoPago)';
-    }
-
-    final diasMora = diasTranscurridos - diasLimite;
-    if (diasMora == 1) {
-      return '1 día de mora (pago $periodoPago)';
-    }
-    return '$diasMora días de mora (pago $periodoPago)';
   }
 
   @override

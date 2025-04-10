@@ -322,6 +322,7 @@ class Databaseservices {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
+      debugPrint(data.toString());
       return data.cast<Map<String, dynamic>>();
     } else {
       throw Exception('Error al cargar los clientes');

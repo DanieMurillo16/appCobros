@@ -1,7 +1,6 @@
 // ignore_for_file: unused_field, prefer_final_fields, unused_local_variable, use_build_context_synchronously
 
 import 'dart:convert';
-
 import 'package:cobrosapp/config/services/conexioninternet.dart';
 import 'package:cobrosapp/config/services/formatomiles.dart';
 import 'package:cobrosapp/config/services/validacion_estado_usuario.dart';
@@ -57,6 +56,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   List<dynamic> _datosPrestamos = [];
   List<dynamic> _datosCancelados = [];
   List<Map<String, dynamic>> _datosMovimientos = [];
+  // Añadir esta variable para cachear el valor de caja
+  Map<String, dynamic>? _ultimoDetallesCaja;
 
   // Método para cargar todos los datos
   Future<void> _cargarTodosDatos() async {
@@ -155,6 +156,9 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   @override
   void initState() {
     super.initState();
+    // Inicializar _ultimoDetallesCaja como vacío
+    _ultimoDetallesCaja = null;
+
     if (_pref.cargo == '4' || _pref.cargo == '3') {
       // Cargar empleados
       _loadEmpleados();
@@ -162,10 +166,17 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     } else {
       // Otros cargos => sin Spinner, cargar datos del día
       fecha.text = _dataBaseServices.obtenerFechaActual();
-      _futureCaja = _calcularTotalRecaudado(context);
       _cargarAbonos = true;
-      // Cargar datos iniciales
-      _cargarTodosDatos();
+
+      // Cargar datos iniciales y LUEGO calcular el saldo
+      _cargarTodosDatos().then((_) {
+        if (mounted) {
+          setState(() {
+            _futureCaja = Future.value(calcularCaja());
+          });
+        }
+      });
+
       _botonActivo = BotonActivo.clientes;
     }
   }
@@ -330,6 +341,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
               const SizedBox(height: 16),
               // Campo fecha y botón de búsqueda
               if (_pref.cargo == '4')
+                // En el widget _campoFecha (donde va el botón de búsqueda)
+                // Modifica el botón de lupa en el widget Row
                 Row(
                   children: [
                     Expanded(flex: 6, child: _campoFecha(enabled: true)),
@@ -338,43 +351,54 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                       child: IconButton(
                         color: ColoresApp.rojo,
                         icon: const Icon(Icons.search),
-                        // Modifica el método onPressed del botón de búsqueda
-                        // Modifica el método onPressed del botón de búsqueda
+                        // Modifica el método onPressed del botón de lupa así:
                         onPressed: () async {
                           // Mostrar indicador de carga
                           SmartDialog.showLoading(msg: "Cargando datos...");
 
-                          // IMPORTANTE: Reiniciar todas las listas de datos antes de cargar nuevos
+                          // IMPORTANTE: Invalidar el caché
                           setState(() {
+                            _ultimoDetallesCaja = null;
                             _datosClientes = [];
                             _datosPrestamos = [];
                             _datosCancelados = [];
                             _datosMovimientos = [];
                             _isLoading = true;
 
-                            // Actualizar la fuente de datos para el cálculo
-                            _futureCaja = _calcularTotalRecaudado(context);
+                            // Reiniciar botones a estado inicial
+                            _botonActivo = BotonActivo.clientes;
+                            _mostrarClientes = true;
+                            _mostrarPrestamos = false;
+                            _mostrarCancelados = false;
+                            _cargarAbonos = true;
                           });
 
                           try {
-                            // Cargar datos frescos
-                            await _cargarTodosDatos();
+                            // Modificar _cargarTodosDatos para que cargue SIEMPRE todos los datos
+                            await _cargarTodosDatosPorLupa();
 
-                            // Mostrar mensaje de éxito
+                            // Calcular totales después de cargar datos
+                            if (mounted) {
+                              // Actualizar _futureCaja directamente con el valor calculado
+                              String valorCalculado = calcularCaja();
+                              setState(() {
+                                _futureCaja = Future.value(valorCalculado);
+                              });
+                            }
+
+                            SmartDialog.dismiss();
                             SmartDialog.showToast(
                               "Datos actualizados",
                               displayTime: const Duration(milliseconds: 1200),
                             );
                           } catch (error) {
-                            // Manejar errores
+                            SmartDialog.dismiss();
                             SmartDialog.showToast("Error al cargar: $error");
                           } finally {
-                            // Asegurar que siempre se termine el estado de carga
                             if (mounted) {
                               setState(() {
                                 _isLoading = false;
                               });
-                              SmartDialog.dismiss();
                             }
                           }
                         },
@@ -446,7 +470,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                onPressed: () async {
+                onPressed: () {
                   if (_isLoading) return;
                   setState(() {
                     _botonActivo = BotonActivo.clientes;
@@ -455,9 +479,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     _mostrarCancelados = false;
                     _cargarAbonos = true;
                   });
-                  if (_datosClientes.isEmpty) {
-                    _cargarTodosDatos();
-                  }
                 },
                 child: const Text("Clientes",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -482,11 +503,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     _mostrarCancelados = false;
                     _cargarAbonos = true; // Añadir esto para mostrar los datos
                   });
-
-                  // No es necesario recargar datos si ya están disponibles
-                  if (_datosMovimientos.isEmpty) {
-                    _cargarTodosDatos();
-                  }
                 },
                 child: const Text("Gastos",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -511,11 +527,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     _mostrarPrestamos = true;
                     _mostrarCancelados = false;
                   });
-
-                  // No es necesario recargar datos si ya están disponibles
-                  if (_datosPrestamos.isEmpty) {
-                    _cargarTodosDatos();
-                  }
                 },
                 child: const Text("Prestamos",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -533,18 +544,12 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                 ),
                 onPressed: () {
                   if (_isLoading) return;
-
                   setState(() {
                     _botonActivo = BotonActivo.cancelados;
                     _mostrarClientes = false;
                     _mostrarPrestamos = false;
                     _mostrarCancelados = true;
                   });
-
-                  // No es necesario recargar datos si ya están disponibles
-                  if (_datosCancelados.isEmpty) {
-                    _cargarTodosDatos();
-                  }
                 },
                 child: const Text("Cancelados",
                     style: TextStyle(color: ColoresApp.blanco)),
@@ -636,65 +641,154 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   Widget encabezaCaja() {
-    final saldoCaja = calcularCaja();
+    return FutureBuilder<String>(
+      future: _futureCaja,
+      builder: (context, snapshot) {
+        // Mostrar un valor predeterminado hasta que el Future se complete
+        final saldoCaja =
+            snapshot.connectionState == ConnectionState.done && snapshot.hasData
+                ? snapshot.data!
+                : "0";
 
-    // Obtener los valores de cálculo para el diálogo
-    final cajaDetalles = _obtenerDetallesCaja();
-
-    return Container(
-      width: double.infinity,
-      height: 15.h,
-      padding: const EdgeInsets.all(10),
-      decoration: const BoxDecoration(
-        color: ColoresApp.blanco,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(20),
-          bottomRight: Radius.circular(20),
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return Container(
+          width: double.infinity,
+          height: 15.h,
+          padding: const EdgeInsets.all(10),
+          decoration: const BoxDecoration(
+            color: ColoresApp.blanco,
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(20),
+              bottomRight: Radius.circular(20),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                "Saldo caja:",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontFamily: 'poppins',
-                  fontWeight: FontWeight.bold,
-                ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Saldo caja:",
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontFamily: 'poppins',
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.info_outline,
+                      color: ColoresApp.rojoLogo,
+                      size: 24,
+                    ),
+                    // Modificar esta línea para obtener los detalles al momento de mostrar el diálogo
+                    onPressed: () =>
+                        _mostrarDialogoDetalleCaja(_obtenerDetallesCaja()),
+                    tooltip: 'Detalles del cálculo',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                  ),
+                ],
               ),
-              IconButton(
-                icon: const Icon(
-                  Icons.info_outline,
-                  color: ColoresApp.rojoLogo,
-                  size: 24,
-                ),
-                onPressed: () => _mostrarDialogoDetalleCaja(cajaDetalles),
-                tooltip: 'Detalles del cálculo',
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
+              FormatoNumero(
+                numero: saldoCaja,
+                color: ColoresApp.negro,
+                fontSize: 25,
+                fontSize2: 10,
               ),
+              const Divider(),
             ],
           ),
-          FormatoNumero(
-            numero: saldoCaja,
-            color: ColoresApp.negro,
-            fontSize: 25,
-            fontSize2: 10,
-          ),
-          const Divider(),
-        ],
-      ),
+        );
+      },
     );
   }
 
-// Método para obtener los detalles del cálculo de caja
+  // Método específico para cuando se presiona el botón de lupa
+  Future<void> _cargarTodosDatosPorLupa() async {
+    if (!mounted) return;
+
+    try {
+      final bool conectado = await Conexioninternet().isConnected();
+      if (!conectado) {
+        throw Exception('No hay conexión a internet');
+      }
+
+      // Siempre cargar TODOS los datos, independientemente del filtro
+      List<Future> futuros = [];
+
+      // Cargar clientes
+      futuros.add(
+          _cargarDatosConRetry(() => _consultarListadoReporteAbonosClientes()));
+
+      // Cargar préstamos
+      futuros.add(_cargarDatosConRetry(() => fetchListaPrestamos()));
+
+      // Cargar cancelados
+      futuros.add(_cargarDatosConRetry(() => fetchListaCancelados()));
+
+      // Cargar movimientos
+      futuros.add(
+          _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
+                _rolSeleccionado ?? _pref.idUser,
+                fecha.text,
+              )));
+
+      final resultados = await Future.wait(futuros);
+
+      if (mounted) {
+        setState(() {
+          // Siempre asignar todos los valores, sin importar el filtro actual
+          _datosClientes = resultados[0] as List<Map<String, dynamic>>;
+          _datosPrestamos = resultados[1];
+          _datosCancelados = resultados[2];
+          _datosMovimientos = resultados[3] as List<Map<String, dynamic>>;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: _cargarTodosDatosPorLupa,
+            ),
+          ),
+        );
+      }
+      rethrow;
+    }
+  }
+
   Map<String, dynamic> _obtenerDetallesCaja() {
+    // Si ya tenemos un valor calculado y no estamos cargando nuevos datos, devolverlo
+    if (_ultimoDetallesCaja != null && !_isLoading) {
+      return _ultimoDetallesCaja!;
+    }
+
+    // Comprobar si hay datos para calcular
+    if (_datosClientes.isEmpty &&
+        _datosMovimientos.isEmpty &&
+        _datosPrestamos.isEmpty &&
+        _datosCancelados.isEmpty) {
+      // Devolver valores por defecto
+      return {
+        'abonosDiarios': 0.0,
+        'cancelados': 0.0,
+        'seguros': 0.0,
+        'ingresos': 0.0,
+        'totalEntradas': 0.0,
+        'prestamos': 0.0,
+        'gastos': 0.0,
+        'totalSalidas': 0.0,
+        'saldoCaja': 0.0,
+      };
+    }
+
+    // Si no hay valor previo o estamos recargando, calcular
     // 1. Cálculos de entradas
     final abonos = _datosClientes;
     double totalAbonosDiario = abonos.fold(0.0, (sum, cliente) {
@@ -744,7 +838,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     double totalSalidas = totalSumaDineroPrestado + totalGastos;
     double saldoCaja = totalEntradas - totalSalidas;
 
-    return {
+    // Guardar el resultado para uso futuro
+    _ultimoDetallesCaja = {
       'abonosDiarios': totalAbonosDiario,
       'cancelados': totalSumaCancelados,
       'seguros': totalSumaSeguros,
@@ -755,6 +850,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       'totalSalidas': totalSalidas,
       'saldoCaja': saldoCaja,
     };
+
+    return _ultimoDetallesCaja!;
   }
 
 // Método para mostrar el diálogo con detalles
@@ -948,61 +1045,17 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   }
 
   String calcularCaja() {
-    // 1. Cálculos de entradas que ya tienes
-    final abonos = _datosClientes;
-    double totalAbonosDiario = abonos.fold(0.0, (sum, cliente) {
-      return sum +
-          (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
-    });
+    // Verificar si existen datos para calcular
+    if (_datosClientes.isEmpty &&
+        _datosPrestamos.isEmpty &&
+        _datosCancelados.isEmpty &&
+        _datosMovimientos.isEmpty) {
+      return "0"; // Valor por defecto cuando no hay datos
+    }
 
-    final clientesCancelados = _datosCancelados;
-    double totalSumaCancelados = clientesCancelados.fold(0.0, (sum, cliente) {
-      return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
-    });
-
-    final datosPrestamo = _datosPrestamos;
-    double totalSumaDineroPrestado = datosPrestamo.fold(0.0, (sum, cliente) {
-      return sum +
-          (double.tryParse(cliente['pres_cantidad'].toString()) ?? 0.0);
-    });
-
-    final clientesPrestamos = _datosPrestamos;
-    double totalSumaSeguros = clientesPrestamos.fold(0.0, (sum, cliente) {
-      double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
-      return sum + seguro;
-    });
-
-    // 2. Cálculos de movimientos (ingresos y gastos)
-    double totalIngresos = _datosMovimientos.fold(0.0, (sum, movimiento) {
-      if (movimiento['tipoMovimiento'] == 1) {
-        // Ingreso
-        return sum +
-            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
-      }
-      return sum;
-    });
-
-    double totalGastos = _datosMovimientos.fold(0.0, (sum, movimiento) {
-      if (movimiento['tipoMovimiento'] == 2) {
-        // Gasto
-        return sum +
-            (double.tryParse(movimiento['movi_valor'].toString()) ?? 0.0);
-      }
-      return sum;
-    });
-    debugPrint(
-        'Total prestado: $totalSumaDineroPrestado'); // Imprimir el total de gastos en la consola
-
-    // 3. Cálculo final del saldo de caja
-    double totalEntradas = totalAbonosDiario +
-        totalSumaCancelados +
-        totalSumaSeguros +
-        totalIngresos;
-    double totalSalidas = totalSumaDineroPrestado + totalGastos;
-    double saldoCaja = totalEntradas - totalSalidas;
-
-    // 5. Devolver el saldo de caja formateado
-    return saldoCaja.toString();
+    // Usar los valores ya almacenados sin recalcular
+    final cajaDetalles = _obtenerDetallesCaja();
+    return cajaDetalles['saldoCaja'].toString();
   }
 
   Widget listadoReporteAbonosClientes() {
@@ -1039,14 +1092,13 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       return sum + (double.tryParse(cliente['total_abonos'].toString()) ?? 0.0);
     });
 
-    double sumatotalDinero = totalsumaAbonos + sumaDinero;
-
-    final clientes1 = _datosPrestamos;
-    double sumaSeguros = clientes1.fold(0.0, (sum, cliente) {
+    final clientesPrestamos = _datosPrestamos;
+    double totalSumaSeguros = clientesPrestamos.fold(0.0, (sum, cliente) {
       double seguro = double.tryParse(cliente['pres_seguro'].toString()) ?? 0.0;
-
       return sum + seguro;
     });
+
+    double sumatotalDinero = totalsumaAbonos + sumaDinero + totalSumaSeguros;
 
     return Expanded(
       flex: 7,
