@@ -73,52 +73,28 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
         throw Exception('No hay conexión a internet');
       }
 
-      // Cargar solo los datos necesarios según el filtro activo
-      List<Future> futuros = [];
-
-      if (_mostrarClientes || _botonActivo == BotonActivo.ninguno) {
-        futuros.add(_cargarDatosConRetry(
-            () => _consultarListadoReporteAbonosClientes()));
-      }
-
-      if (_mostrarPrestamos || _botonActivo == BotonActivo.ninguno) {
-        futuros.add(_cargarDatosConRetry(() => fetchListaPrestamos()));
-      }
-
-      if (_mostrarCancelados || _botonActivo == BotonActivo.ninguno) {
-        futuros.add(_cargarDatosConRetry(() => fetchListaCancelados()));
-      }
-
-      // Siempre cargar los movimientos para el cálculo de caja
-      futuros.add(
-          _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
-                _rolSeleccionado ?? _pref.idUser,
-                fecha.text,
-              )));
-
-      final resultados = await Future.wait(futuros);
+      // Siempre cargar todos los tipos de datos
+      final resultados = await Future.wait([
+        _cargarDatosConRetry(() => _consultarListadoReporteAbonosClientes()),
+        _cargarDatosConRetry(
+            () => fetchListaPrestamos()), // Siempre cargar préstamos
+        _cargarDatosConRetry(() => fetchListaCancelados()),
+        _cargarDatosConRetry(() => _dataBaseServices.listaMovimientoscaja2(
+              _rolSeleccionado ?? _pref.idUser,
+              fecha.text,
+            )),
+      ]);
 
       if (mounted) {
-        // En el setState dentro de _cargarTodosDatos()
         setState(() {
-          int indice = 0;
-          if (_mostrarClientes || _botonActivo == BotonActivo.ninguno) {
-            // Asignar, no añadir
-            _datosClientes = resultados[indice++] as List<Map<String, dynamic>>;
-          }
-          if (_mostrarPrestamos || _botonActivo == BotonActivo.ninguno) {
-            // Asignar, no añadir
-            _datosPrestamos = resultados[indice++];
-          }
-          if (_mostrarCancelados || _botonActivo == BotonActivo.ninguno) {
-            // Asignar, no añadir
-            _datosCancelados = resultados[indice++];
-          }
-          // Asignar, no añadir
-          _datosMovimientos = resultados.last as List<Map<String, dynamic>>;
+          _datosClientes = resultados[0] as List<Map<String, dynamic>>;
+          _datosPrestamos = resultados[1];
+          _datosCancelados = resultados[2];
+          _datosMovimientos = resultados[3] as List<Map<String, dynamic>>;
         });
       }
     } catch (e) {
+      debugPrint('Error en _cargarTodosDatos: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -130,7 +106,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           ),
         );
       }
-      rethrow;
     } finally {
       if (mounted) {
         setState(() {
@@ -167,7 +142,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       // Otros cargos => sin Spinner, cargar datos del día
       fecha.text = _dataBaseServices.obtenerFechaActual();
       _cargarAbonos = true;
-
       // Cargar datos iniciales y LUEGO calcular el saldo
       _cargarTodosDatos().then((_) {
         if (mounted) {
@@ -1202,52 +1176,60 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
   Future<List<dynamic>> fetchListaPrestamos() async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {
-      // Lanza una excepción si no hay internet
       throw Exception('No tienes conexion a internet');
     }
     if (!mounted) return [];
+
     // Determina el ID y la fecha a usar
     String idConsultado;
     String fechaSeleccionada;
 
+    // Simplificar la lógica para determinar el ID y la fecha
     if (_pref.cargo == '4') {
-      // Usa el empleado seleccionado o, si no, _pref.idUser
+      // Para admin principal
       idConsultado = (_rolSeleccionado != null && _rolSeleccionado!.isNotEmpty)
           ? _rolSeleccionado!
           : _pref.idUser;
 
-      // Usa la fecha del formulario o la fecha actual si está vacía
+      // Usa la fecha del formulario o la fecha actual
       final formDate =
           _formKey.currentState?.fields['fecha']?.value?.toString();
-      if (formDate == null || formDate.isEmpty) {
-        fechaSeleccionada = _dataBaseServices.obtenerFechaActual();
-      } else {
-        fechaSeleccionada = formDate.substring(0, 10);
-      }
-    } else if (_pref.cargo == '3') {
-      // Para cargo 3, usa el empleado seleccionado y la fecha actual
-      idConsultado = (_rolSeleccionado != null && _rolSeleccionado!.isNotEmpty)
-          ? _rolSeleccionado!
-          : _pref.idUser;
-      fechaSeleccionada = _dataBaseServices.obtenerFechaActual();
+      fechaSeleccionada = (formDate != null && formDate.isNotEmpty)
+          ? formDate.substring(0, 10)
+          : _dataBaseServices.obtenerFechaActual();
     } else {
-      // Para otros cargos, usa el ID pref.idUser y fecha actual
-      idConsultado = _pref.idUser;
-      fechaSeleccionada = _dataBaseServices.obtenerFechaActual();
+      // Para TODOS los demás cargos (incluido cargo 3 y empleados normales)
+      idConsultado = _pref.idUser; // Usar siempre el ID del usuario actual
+      fechaSeleccionada =
+          _dataBaseServices.obtenerFechaActual(); // Usar fecha actual
     }
+
+    debugPrint('ID Consultado: $idConsultado'); // Para depuración
+    debugPrint('Fecha Seleccionada: $fechaSeleccionada'); // Para depuración
+    debugPrint('Cargo: ${_pref.cargo}'); // Para depuración
 
     var url = Uri.parse(
         "${ApiConstants.listaPrestamosNuevos}$idConsultado&fc=$fechaSeleccionada&cobro=${_pref.cobro}");
-    final response = await http.get(url);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      if (data['success'] == true) {
-        return data['data'] ?? [];
+    debugPrint('URL: $url'); // Para depuración
+
+    try {
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        debugPrint('Respuesta API: ${response.body}'); // Para depuración
+        if (data['success'] == true) {
+          return data['data'] ?? [];
+        }
+        return [];
+      } else {
+        throw Exception(
+            'Error al cargar los préstamos: ${response.statusCode}');
       }
-      return [];
-    } else {
-      throw Exception('Error al cargar los clientes');
+    } catch (e) {
+      debugPrint('Error en fetchListaPrestamos: $e'); // Para depuración
+      throw Exception('Error al cargar los préstamos: $e');
     }
   }
 

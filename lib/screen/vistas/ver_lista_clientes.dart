@@ -345,26 +345,24 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
             ),
           ),
           Row(
+            spacing: 10,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _indicadorColor(
-                color: ColoresApp.verde,
-                texto: 'Al día',
+                color: ColoresApp.morado,
+                texto: 'Nuevo hoy',
               ),
-              const SizedBox(width: 10),
+              _indicadorColor(
+                color: ColoresApp.verde,
+                texto: '0-4 cuotas',
+              ),
               _indicadorColor(
                 color: Colors.orange,
-                texto: '+3 días',
+                texto: '5-7 cuotas',
               ),
-              const SizedBox(width: 10),
               _indicadorColor(
                 color: ColoresApp.rojoLogo,
-                texto: '+5 días',
-              ),
-              const SizedBox(width: 10),
-              _indicadorColor(
-                color: ColoresApp.morado,
-                texto: 'Cliente nuevo',
+                texto: '+8 cuotas',
               ),
             ],
           ),
@@ -394,22 +392,6 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   }
 }
 
-// Función para contar días laborables (sin domingos)
-int _calcularDiasLaborables(DateTime inicio, DateTime fin) {
-  int dias = 0;
-  DateTime actual = DateTime(inicio.year, inicio.month, inicio.day);
-
-  while (actual.isBefore(fin) || actual.isAtSameMomentAs(fin)) {
-    // Domingo = 7 en DateTime weekday
-    if (actual.weekday != 7) {
-      dias++;
-    }
-    actual = actual.add(const Duration(days: 1));
-  }
-
-  return dias;
-}
-
 class ClienteCard extends StatelessWidget {
   final Map<String, dynamic> cliente;
   final VoidCallback onPressed;
@@ -420,8 +402,26 @@ class ClienteCard extends StatelessWidget {
     required this.onPressed,
   });
 
+// Modificar el método _calcularDiasLaborables
+  int _calcularDiasLaborables(DateTime inicio, DateTime fin) {
+    // Comenzar desde el día siguiente al préstamo
+    DateTime actual = DateTime(inicio.year, inicio.month, inicio.day)
+        .add(const Duration(days: 1));
+    int dias = 0;
+
+    while (actual.isBefore(fin) || actual.isAtSameMomentAs(fin)) {
+      // No contar domingos (weekday 7)
+      if (actual.weekday != 7) {
+        dias++;
+      }
+      actual = actual.add(const Duration(days: 1));
+    }
+
+    return dias;
+  }
+
+// En el método _obtenerColorAvatar, modificar la lógica de validación
   Color _obtenerColorAvatar() {
-    // Obtener fechas y datos básicos
     final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
     final tipoPrestamo =
@@ -429,71 +429,61 @@ class ClienteCard extends StatelessWidget {
     final totalAbonosRealizados =
         int.tryParse(cliente['cantidad_cuotas'].toString()) ?? 0;
 
-    // Verificar si es un préstamo nuevo (de hoy)
+    // Verificar si es préstamo de hoy
     final esMismoDia = fechaPrestamo.year == hoy.year &&
         fechaPrestamo.month == hoy.month &&
         fechaPrestamo.day == hoy.day;
 
-    // Si es préstamo de hoy, siempre es morado (nuevo)
     if (esMismoDia) {
       return ColoresApp.morado; // Préstamo nuevo de hoy
     }
 
-    // Calcular días laborables transcurridos (excluyendo domingos)
+    // Si es del día anterior, verificar si hoy es domingo
+    final esDiaAnterior = fechaPrestamo.difference(hoy).inDays == -1;
+    if (esDiaAnterior && hoy.weekday == 7) {
+      return ColoresApp.verde; // No se cobra en domingo
+    }
+
+    // Calcular días laborables transcurridos (excluyendo domingos y el día del préstamo)
     final diasLaborablesTranscurridos =
         _calcularDiasLaborables(fechaPrestamo, hoy);
 
     // Definir intervalo según tipo de préstamo
     int intervaloPago;
-
     switch (tipoPrestamo) {
-      case 1: // Diario (pago de lunes a sábado)
+      case 1: // Diario (lunes a sábado)
         intervaloPago = 1;
         break;
       case 2: // Semanal
-        intervaloPago =
-            6; // 7 días normales - 1 domingo = 6 días laborables por semana
+        intervaloPago = 6; // 7 días - 1 domingo
         break;
       case 3: // Quincenal
-        intervaloPago =
-            13; // 15 días normales - 2 domingos = 13 días laborables
+        intervaloPago = 13; // 15 días - 2 domingos
         break;
       default:
         intervaloPago = 1;
     }
 
-    // Calcular cuántos pagos debería haber realizado ya (basado en días laborables)
+    // Calcular cuotas esperadas
     int abonosEsperados = (diasLaborablesTranscurridos / intervaloPago).ceil();
 
-    // Ajuste para préstamos nuevos (1-2 días laborables)
-    if (cliente['ultimo_abono'] == null &&
-        diasLaborablesTranscurridos <= 2 &&
-        abonosEsperados <= 1) {
-      return ColoresApp.verde; // verde para préstamos recientes sin abonos aún
+    // Si es muy reciente (primer día laborable)
+    if (diasLaborablesTranscurridos == 0) {
+      return ColoresApp.verde; // Todavía no debe pagar
     }
 
-    // Si no hay pagos registrados y debería haber al menos uno (caso general)
-    if (cliente['ultimo_abono'] == null && abonosEsperados > 0) {
-      // Graduamos el color según los días laborables transcurridos
-      if (abonosEsperados <= 3) {
-        return Colors.orange; // 1-3 cuotas sin pagar
-      } else {
-        return ColoresApp.rojoLogo; // 4+ cuotas sin pagar
-      }
-    }
-
-    // Calcular cuántos pagos faltan
+    // Calcular pagos faltantes
     int abonosFaltantes = abonosEsperados - totalAbonosRealizados;
 
-    // Lógica de colores según los umbrales de abonosFaltantes
-    if (abonosFaltantes < 2) {
-      return ColoresApp.verde; // Al día, adelantado o solo debe 1 cuota
-    } else if (abonosFaltantes >= 2 && abonosFaltantes <= 3) {
-      return Colors.orange; // 2-3 cuotas atrasadas (amarillo-naranja)
-    } else if (abonosFaltantes >= 4 && abonosFaltantes <= 6) {
-      return ColoresApp.rojo; // 4-6 cuotas atrasadas (rojo)
+    // Asignar colores según cantidad de cuotas atrasadas
+    if (abonosFaltantes <= 4) {
+      return ColoresApp.verde; // Al día o atraso menor
+    } else if (abonosFaltantes >= 5 && abonosFaltantes <= 7) {
+      return Colors.orange; // Atraso moderado
+    } else if (abonosFaltantes >= 8 && abonosFaltantes <= 12) {
+      return ColoresApp.rojo; // Atraso significativo
     } else {
-      return ColoresApp.rojoLogo; // Más de 6 cuotas
+      return ColoresApp.rojoLogo; // Atraso grave
     }
   }
 
@@ -513,6 +503,11 @@ class ClienteCard extends StatelessWidget {
 
     if (esMismoDia) {
       return 'Préstamo nuevo de hoy';
+    }
+
+    // Si es domingo y el préstamo es del día anterior
+    if (hoy.weekday == 7 && fechaPrestamo.difference(hoy).inDays == -1) {
+      return 'Préstamo reciente (no se cobra en domingo)';
     }
 
     // Determinar el período de pago según el tipo

@@ -110,6 +110,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
 
   // Cargar clientes desde PHP (tomando como parámetro el id del empleado)
   Future<void> _fetchClientesFromPhp(String idEmpleado) async {
+    debugPrint("ID Empleado: $idEmpleado");
     try {
       final clientes =
           await _dataBaseServices.fetchClientesSpinnerFromPhp(idEmpleado);

@@ -71,7 +71,6 @@ class Databaseservices {
         "cantidad": saldo,
         "cobro": cobro,
       };
-
       // Agregar `caja_descripcion` al cuerpo si no es nulo ni vacío
       if (descripcion != null && descripcion.isNotEmpty) {
         body["caja_descripcion"] = descripcion;
@@ -295,7 +294,7 @@ class Databaseservices {
         return data.map((item) {
           return {
             'fk_roll': item['idpersona'],
-            'nombreCompleto': item['per_nombre'],
+            'nombreCompleto': item['per_nombre'] + ' ' + item['per_apellido'],
           };
         }).toList();
       } else {
@@ -322,7 +321,6 @@ class Databaseservices {
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      debugPrint(data.toString());
       return data.cast<Map<String, dynamic>>();
     } else {
       throw Exception('Error al cargar los clientes');

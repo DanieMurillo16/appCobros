@@ -1,0 +1,2 @@
+/Users/danielmurillo/Desktop/appCobros/android/app/.cxx/Debug/k6d1l4e6/x86_64/CMakeFiles/edit_cache.dir
+/Users/danielmurillo/Desktop/appCobros/android/app/.cxx/Debug/k6d1l4e6/x86_64/CMakeFiles/rebuild_cache.dir
