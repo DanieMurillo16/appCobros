@@ -626,7 +626,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
 
         return Container(
           width: double.infinity,
-          height: 15.h,
+          height: 17.h,
           padding: const EdgeInsets.all(10),
           decoration: const BoxDecoration(
             color: ColoresApp.blanco,
@@ -639,7 +639,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -655,7 +655,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                     icon: const Icon(
                       Icons.info_outline,
                       color: ColoresApp.rojoLogo,
-                      size: 24,
+                      size: 20,
                     ),
                     // Modificar esta línea para obtener los detalles al momento de mostrar el diálogo
                     onPressed: () =>
@@ -670,7 +670,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
                 numero: saldoCaja,
                 color: ColoresApp.negro,
                 fontSize: 25,
-                fontSize2: 10,
+                fontSize2: 8,
               ),
               const Divider(),
             ],
@@ -762,13 +762,14 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       };
     }
 
-    // Si no hay valor previo o estamos recargando, calcular
-    // 1. Cálculos de entradas
+  // Si no hay valor previo o estamos recargando, calcular
+  // 1. Cálculos de entradas
     final abonos = _datosClientes;
-    double totalAbonosDiario = abonos.fold(0.0, (sum, cliente) {
-      return sum +
-          (double.tryParse(cliente['monto_abonado'].toString()) ?? 0.0);
-    });
+  // Tomamos el valor de suma_excl_cancelados del primer registro ya que es el mismo para todos
+    double totalAbonosDiario = double.tryParse(abonos.isNotEmpty
+            ? abonos[0]['suma_excl_cancelados'].toString()
+            : '0') ??
+        0.0;
 
     final clientesCancelados = _datosCancelados;
     double totalSumaCancelados = clientesCancelados.fold(0.0, (sum, cliente) {
