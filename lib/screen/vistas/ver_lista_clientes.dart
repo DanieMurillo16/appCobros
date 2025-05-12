@@ -233,7 +233,9 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
       ),
       drawer: const DrawerMenu(),
       body: Column(
+        
         children: [
+          const SizedBox(height: 10,),
           // Dropdown solo para cargo=4
           if (cargoEmpleado == '4' || cargoEmpleado == '3')
             Padding(

@@ -100,7 +100,6 @@ class _EmpleadosListaState extends BaseScreen<EmpleadosLista> {
                         empleado['usu_nombre'].toString(),
                         nuevoEstado,
                       );
-
                       // Actualizar la lista local sin llamar a setState
                       empleado['usu_estado'] = nuevoEstado;
                       SmartDialog.showToast('Estado actualizado');

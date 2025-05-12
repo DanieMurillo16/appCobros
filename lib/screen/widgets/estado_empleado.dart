@@ -105,30 +105,29 @@ class _EmpleadoListItemState extends State<EmpleadoListItem> {
               },
               child: Row(
                 children: [
-                  const Text(
-                    'Teléfono: ',
-                    style: TextStyle(color: ColoresApp.negro),
-                  ),
                   // Espacio entre el número y el icono
                   const Icon(
                     Icons.phone,
-                    size: 16,
+                    size: 15,
                     color: ColoresApp.rojoLogo,
                   ),
                   const SizedBox(width: 4),
-                  Text(
-                    '${empleado['per_telefono']}',
-                    style: const TextStyle(
-                      color: Colors.red,
-                      decoration: TextDecoration.underline,
-                      decorationColor: ColoresApp.rojoLogo,
+                  Expanded(
+                    child: Text(
+                      '${empleado['per_telefono']}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        color: Colors.red,
+                        decoration: TextDecoration.underline,
+                        decorationColor: ColoresApp.rojoLogo,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
             Text(
-              'Fecha de registro: ${empleado['per_fecha_creacion']}',
+              'Registro: ${empleado['per_fecha_creacion']}',
               style: const TextStyle(color: ColoresApp.negro),
             ),
             const Divider(),
