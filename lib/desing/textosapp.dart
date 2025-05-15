@@ -24,7 +24,7 @@ class AppTextos {
 
   // Textos para vista Clientes
   static const String tituloClientes = "Clientes";
-  static const String tituloClientesTerminados = "Prestamos Terminados";
+  static const String tituloClientesTerminados = "Terminados";
   static const String nohayClientesVC = "No hay clientes disponibles.";
   static const String nohayInternetVC = "Ups, parece que no tienes conexión a internet. Si el error continúa, contacta al desarrollador.";
   // Textos para vista Caja
