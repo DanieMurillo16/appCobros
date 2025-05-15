@@ -15,7 +15,7 @@ class SpinnerEmpleados extends StatelessWidget {
     this.onChanged,
     this.valueid,
     this.nombreCompleto,
-    this.hintText, this.labelText,
+    this.hintText = 'Seleccione empleado', this.labelText,
   });
 
   @override

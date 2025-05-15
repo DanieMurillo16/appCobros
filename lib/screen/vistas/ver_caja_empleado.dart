@@ -714,7 +714,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
 
       if (mounted) {
         setState(() {
-          // Siempre asignar todos los valores, sin importar el filtro actual
           _datosClientes = resultados[0] as List<Map<String, dynamic>>;
           _datosPrestamos = resultados[1];
           _datosCancelados = resultados[2];
@@ -1073,7 +1072,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       return sum + seguro;
     });
 
-    double sumatotalDinero = totalsumaAbonos + sumaDinero + totalSumaSeguros;
+
+    double sumatotalDinero =  sumaDinero + totalSumaSeguros;
 
     return Expanded(
       flex: 7,

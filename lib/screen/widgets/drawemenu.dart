@@ -75,7 +75,7 @@ class _DrawerMenuState extends State<DrawerMenu> {
               context,
               AppTextos.clienteVD,
               Icons.groups,
-              rutaCliente,
+              rutaNavBarClientes,
               ColoresApp.verde,
             ),
             const LineasDivisoras(),

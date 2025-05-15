@@ -1,5 +1,6 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings
 
+import 'package:cobrosapp/config/entitys/clientes_cancelados_entity.dart';
 import 'package:cobrosapp/desing/textosapp.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -322,6 +323,28 @@ class Databaseservices {
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.cast<Map<String, dynamic>>();
+    } else {
+      throw Exception('Error al cargar los clientes');
+    }
+  }
+
+  Future<List<ClientesCanceladosEntity>> listaClientesCreditosTerminados(
+      String idConsultado) async {
+    bool conectado = await Conexioninternet().isConnected();
+    if (!conectado) {
+      throw Exception('No tienes conexión a internet');
+    }
+    var url = Uri.parse(ApiConstants.listaClientesConPrestamosTerminados +
+        idConsultado +
+        '&cobro=' +
+        _pref.cobro);
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      List<ClientesCanceladosEntity> datos =
+          data.map((e) => ClientesCanceladosEntity.fromJson(e)).toList();
+      return datos;
     } else {
       throw Exception('Error al cargar los clientes');
     }

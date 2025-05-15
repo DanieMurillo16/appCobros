@@ -63,14 +63,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
-    final cargoEmpleado = _pref.cargo;
-    if (cargoEmpleado != '4' && cargoEmpleado != '3') {
-      // Si no es cargo=4, cargamos directamente los clientes del usuario actual
-      _loadClientes();
-    } else {
-      // cargo=4: Cargar lista de empleados para el dropdown
-      _loadEmpleados();
-    }
+    _initializeData();
   }
 
   @override
@@ -203,28 +196,77 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     }
   }
 
+  // Nuevo método para inicializar datos
+  Future<void> _initializeData() async {
+    final cargoEmpleado = _pref.cargo;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (cargoEmpleado == '4' || cargoEmpleado == '3') {
+        // Cargar empleados primero
+        await _loadEmpleados();
+        _rolSeleccionado = null;
+        
+      } else {
+        // Cargar directamente los clientes del usuario actual
+        await _loadClientes();
+      }
+    } catch (e) {
+      debugPrint("Error en inicialización: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
   // Carga de empleados para dropdown (solo aplica si cargo=4)
   Future<void> _loadEmpleados() async {
-    if (!mounted) {
-      return; // Verificar si el widget está montado antes de continuar
-    }
+    if (!mounted) return;
+
     try {
       final empleados =
           await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+
       if (mounted) {
-        // Verificar nuevamente antes de llamar setState
         setState(() {
           _roles = empleados;
+          // Si no hay empleado seleccionado y hay empleados disponibles
+          if (_rolSeleccionado == null && empleados.isNotEmpty) {
+            _rolSeleccionado = empleados[0]['fk_roll'].toString();
+          }
         });
       }
     } catch (e) {
       debugPrint("Error al cargar empleados: $e");
+      // Mostrar error al usuario
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar empleados: $e'),
+            action: SnackBarAction(
+              label: 'Reintentar',
+              onPressed: _loadEmpleados,
+            ),
+          ),
+        );
+      }
     }
+  }
+
+  // Agregar un método para refrescar los datos
+  Future<void> _refreshData() async {
+    await _initializeData();
   }
 
   @override
   Widget build(BuildContext context) {
-    _pref.ultimaPagina = rutaCliente;
+    _pref.ultimaPagina = rutaNavBarClientes;
     final cargoEmpleado = _pref.cargo;
     return Scaffold(
       appBar: const PreferredSize(
@@ -232,103 +274,114 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
         child: TitulosAppBar(nombreRecibido: AppTextos.tituloClientes),
       ),
       drawer: const DrawerMenu(),
-      body: Column(
-        
-        children: [
-          const SizedBox(height: 10,),
-          // Dropdown solo para cargo=4
-          if (cargoEmpleado == '4' || cargoEmpleado == '3')
+      body: RefreshIndicator(
+        onRefresh: _refreshData,
+        child: Column(
+          children: [
+            const SizedBox(
+              height: 10,
+            ),
+            // Dropdown solo para cargo=4
+            if (cargoEmpleado == '4' || cargoEmpleado == '3')
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                child: _roles.isEmpty
+                    ? const Center(
+                        child: Text('Cargando empleados...'),
+                      )
+                    : SpinnerEmpleados(
+                        empleados: _roles,
+                        valorSeleccionado: _rolSeleccionado,
+                        valueid: "fk_roll",
+                        hintText: 'Seleccione empleado',
+                        nombreCompleto: "nombreCompleto",
+                        onChanged: (value) async {
+                          setState(() {
+                            _rolSeleccionado = value;
+                            _clientes.clear();
+                            _itemsToShow = 20;
+                            _isLoading = true;
+                          });
+                          await _loadClientes(empleadoId: _rolSeleccionado);
+                        },
+                      ),
+              ),
+            // Buscador
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-              child: SpinnerEmpleados(
-                empleados: _roles,
-                valorSeleccionado: _rolSeleccionado,
-                valueid: "fk_roll",
-                nombreCompleto: "nombreCompleto",
-                onChanged: (value) {
-                  setState(() {
-                    _rolSeleccionado = value;
-                    _clientes.clear();
-                    _itemsToShow = 20;
-                    _loadClientes(empleadoId: _rolSeleccionado);
-                  });
+              child: TextField(
+                controller: _buscadorController,
+                decoration: InputDecoration(
+                  labelText: "Buscar cliente",
+                  border: const OutlineInputBorder(),
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _buscadorController.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            _buscadorController.clear();
+                            setState(() {});
+                          },
+                        )
+                      : null,
+                ),
+                onChanged: (query) {
+                  setState(() {});
                 },
               ),
             ),
-          // Buscador
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            child: TextField(
-              controller: _buscadorController,
-              decoration: InputDecoration(
-                labelText: "Buscar cliente",
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _buscadorController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () {
-                          _buscadorController.clear();
-                          setState(() {});
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (query) {
-                setState(() {});
-              },
-            ),
-          ),
-          informacionPagos(),
-          Expanded(
-            child: _isLoading
-                ? const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Cargando clientes...'),
-                      ],
-                    ),
-                  )
-                : _clientes.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No hay clientes disponibles.',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: ColoresApp.negro,
-                          ),
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        itemCount: _filtrarClientes(_buscadorController.text)
-                                    .length <
-                                _itemsToShow
-                            ? _filtrarClientes(_buscadorController.text).length
-                            : _itemsToShow,
-                        itemBuilder: (context, index) {
-                          final cliente =
-                              _filtrarClientes(_buscadorController.text)[index];
-                          return ClienteCard(
-                            cliente: cliente,
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => Clientepagoabonos(
-                                    idPrestamo: cliente['idprestamos'],
-                                  ),
-                                ),
-                              );
-                            },
-                          );
-                        },
+            informacionPagos(),
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 16),
+                          Text('Cargando clientes...'),
+                        ],
                       ),
-          ),
-        ],
+                    )
+                  : _clientes.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'No hay clientes disponibles.',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: ColoresApp.negro,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: _scrollController,
+                          itemCount: _filtrarClientes(_buscadorController.text)
+                                      .length <
+                                  _itemsToShow
+                              ? _filtrarClientes(_buscadorController.text)
+                                  .length
+                              : _itemsToShow,
+                          itemBuilder: (context, index) {
+                            final cliente = _filtrarClientes(
+                                _buscadorController.text)[index];
+                            return ClienteCard(
+                              cliente: cliente,
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => Clientepagoabonos(
+                                      idPrestamo: cliente['idprestamos'],
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+            ),
+          ],
+        ),
       ),
     );
   }
