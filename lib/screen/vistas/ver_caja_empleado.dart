@@ -133,10 +133,9 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     super.initState();
     // Inicializar _ultimoDetallesCaja como vacío
     _ultimoDetallesCaja = null;
-
     if (_pref.cargo == '4' || _pref.cargo == '3') {
       // Cargar empleados
-      _loadEmpleados();
+      _cargarDatosEmpleadosSpinner();
       _futureCaja = Future.value("0");
     } else {
       // Otros cargos => sin Spinner, cargar datos del día
@@ -155,7 +154,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     }
   }
 
-  Future<void> _loadEmpleados() async {
+  Future<void> _cargarDatosEmpleadosSpinner() async {
     if (!mounted) return;
     try {
       final empleados =
@@ -191,6 +190,20 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
         fecha.text = _dataBaseServices.obtenerFechaActual(); // Fecha actual
         _futureCaja = _calcularTotalRecaudado(context); // Consulta de caja
         _buscarAbonos(); // Realizar búsqueda de abonos y movimientos
+        // Reiniciar estados
+        _mostrarClientes = true;
+        _mostrarPrestamos = false;
+        _mostrarCancelados = false;
+        _botonActivo = BotonActivo.clientes;
+        _cargarAbonos = true;
+        // Cargar todos los datos
+        _cargarTodosDatos().then((_) {
+          if (mounted) {
+            setState(() {
+              _futureCaja = Future.value(calcularCaja());
+            });
+          }
+        });
       }
     });
   }
@@ -761,10 +774,10 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       };
     }
 
-  // Si no hay valor previo o estamos recargando, calcular
-  // 1. Cálculos de entradas
+    // Si no hay valor previo o estamos recargando, calcular
+    // 1. Cálculos de entradas
     final abonos = _datosClientes;
-  // Tomamos el valor de suma_excl_cancelados del primer registro ya que es el mismo para todos
+    // Tomamos el valor de suma_excl_cancelados del primer registro ya que es el mismo para todos
     double totalAbonosDiario = double.tryParse(abonos.isNotEmpty
             ? abonos[0]['suma_excl_cancelados'].toString()
             : '0') ??
@@ -1072,8 +1085,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       return sum + seguro;
     });
 
-
-    double sumatotalDinero =  sumaDinero + totalSumaSeguros;
+    double sumatotalDinero = sumaDinero + totalSumaSeguros;
 
     return Expanded(
       flex: 7,
@@ -1186,20 +1198,24 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     String fechaSeleccionada;
 
     // Simplificar la lógica para determinar el ID y la fecha
-    if (_pref.cargo == '4') {
+    if (_pref.cargo == '4' || _pref.cargo == '3') {
       // Para admin principal
       idConsultado = (_rolSeleccionado != null && _rolSeleccionado!.isNotEmpty)
           ? _rolSeleccionado!
           : _pref.idUser;
-
       // Usa la fecha del formulario o la fecha actual
-      final formDate =
-          _formKey.currentState?.fields['fecha']?.value?.toString();
-      fechaSeleccionada = (formDate != null && formDate.isNotEmpty)
-          ? formDate.substring(0, 10)
-          : _dataBaseServices.obtenerFechaActual();
+      if (_pref.cargo == '4') {
+        // Solo para admin usa la fecha del formulario
+        final formDate =
+            _formKey.currentState?.fields['fecha']?.value?.toString();
+        fechaSeleccionada = (formDate != null && formDate.isNotEmpty)
+            ? formDate.substring(0, 10)
+            : _dataBaseServices.obtenerFechaActual();
+      } else {
+        // Para cargo 3 siempre usa la fecha actual
+        fechaSeleccionada = _dataBaseServices.obtenerFechaActual();
+      }
     } else {
-      // Para TODOS los demás cargos (incluido cargo 3 y empleados normales)
       idConsultado = _pref.idUser; // Usar siempre el ID del usuario actual
       fechaSeleccionada =
           _dataBaseServices.obtenerFechaActual(); // Usar fecha actual
@@ -1250,7 +1266,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
       idConsultado = (_rolSeleccionado != null && _rolSeleccionado!.isNotEmpty)
           ? _rolSeleccionado!
           : _pref.idUser;
-
       // Usa la fecha del formulario o la fecha actual si está vacía
       final formDate =
           _formKey.currentState?.fields['fecha']?.value?.toString();

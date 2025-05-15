@@ -116,7 +116,7 @@ class _VerListaClientesPrestamosTerminadosState
                 },
               ),
             ),
-          const Text('Prestamos del ultimo mes terminados.'),
+          const Text('Prestamos terminados del ultimo mes.'),
           Expanded(
             child: _isLoading
                 ? const Center(
