@@ -209,7 +209,6 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
         // Cargar empleados primero
         await _loadEmpleados();
         _rolSeleccionado = null;
-        
       } else {
         // Cargar directamente los clientes del usuario actual
         await _loadClientes();
@@ -231,7 +230,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
 
     try {
       final empleados =
-          await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+          await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
 
       if (mounted) {
         setState(() {
@@ -414,10 +413,20 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
               _indicadorColor(
                 color: Colors.orange,
                 texto: '5-7 cuotas',
-              ),
+              )
+            ],
+          ),
+          Row(
+            spacing: 10,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
               _indicadorColor(
                 color: ColoresApp.rojoLogo,
                 texto: '+8 cuotas',
+              ),
+              _indicadorColor(
+                color: ColoresApp.cafe,
+                texto: 'Vencido por tiempo',
               ),
             ],
           ),
@@ -471,154 +480,109 @@ class ClienteCard extends StatelessWidget {
       }
       actual = actual.add(const Duration(days: 1));
     }
-
     return dias;
   }
 
-// En el método _obtenerColorAvatar, modificar la lógica de validación
   Color _obtenerColorAvatar() {
+    // Obtener datos del cliente
     final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
     final tipoPrestamo =
         int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
-    final totalAbonosRealizados =
-        int.tryParse(cliente['cantidad_cuotas'].toString()) ?? 0;
+    final valorCuota =
+        double.tryParse(cliente['pres_valorCuota'].toString()) ?? 0;
+    final totalAbonado =
+        double.tryParse(cliente['total_abonos'].toString()) ?? 0;
 
-    // Verificar si es préstamo de hoy
+    // Verificaciones básicas
     final esMismoDia = fechaPrestamo.year == hoy.year &&
         fechaPrestamo.month == hoy.month &&
         fechaPrestamo.day == hoy.day;
+    if (esMismoDia) return ColoresApp.morado;
 
-    if (esMismoDia) {
-      return ColoresApp.morado; // Préstamo nuevo de hoy
-    }
-
-    // Si es del día anterior, verificar si hoy es domingo
     final esDiaAnterior = fechaPrestamo.difference(hoy).inDays == -1;
-    if (esDiaAnterior && hoy.weekday == 7) {
-      return ColoresApp.verde; // No se cobra en domingo
-    }
+    if (esDiaAnterior && hoy.weekday == 7) return ColoresApp.verde;
 
-    // Calcular días laborables transcurridos (excluyendo domingos y el día del préstamo)
+    // Calcular días laborables
     final diasLaborablesTranscurridos =
         _calcularDiasLaborables(fechaPrestamo, hoy);
+    if (diasLaborablesTranscurridos == 0) return ColoresApp.verde;
+
+    // Calcular cuotas equivalentes basadas en el monto total abonado
+    final cuotasEquivalentes = (totalAbonado / valorCuota).floor();
 
     // Definir intervalo según tipo de préstamo
     int intervaloPago;
     switch (tipoPrestamo) {
-      case 1: // Diario (lunes a sábado)
+      case 1: // Diario
         intervaloPago = 1;
         break;
       case 2: // Semanal
-        intervaloPago = 6; // 7 días - 1 domingo
+        intervaloPago = 6;
         break;
       case 3: // Quincenal
-        intervaloPago = 13; // 15 días - 2 domingos
+        intervaloPago = 13;
         break;
       default:
         intervaloPago = 1;
     }
 
-    // Calcular cuotas esperadas
-    int abonosEsperados = (diasLaborablesTranscurridos / intervaloPago).ceil();
+    // Calcular cuotas esperadas y faltantes
+    int cuotasEsperadas = (diasLaborablesTranscurridos / intervaloPago).ceil();
+    int cuotasFaltantes = cuotasEsperadas - cuotasEquivalentes;
 
-    // Si es muy reciente (primer día laborable)
-    if (diasLaborablesTranscurridos == 0) {
-      return ColoresApp.verde; // Todavía no debe pagar
-    }
-
-    // Calcular pagos faltantes
-    int abonosFaltantes = abonosEsperados - totalAbonosRealizados;
-
-    // Asignar colores según cantidad de cuotas atrasadas
-    if (abonosFaltantes <= 4) {
-      return ColoresApp.verde; // Al día o atraso menor
-    } else if (abonosFaltantes >= 5 && abonosFaltantes <= 7) {
-      return Colors.orange; // Atraso moderado
-    } else if (abonosFaltantes >= 8 && abonosFaltantes <= 12) {
-      return ColoresApp.rojo; // Atraso significativo
+    // Determinar color basado en cuotas faltantes
+    if (cuotasFaltantes <= 0) {
+      return ColoresApp.verde;
+    } else if (cuotasFaltantes <= 4) {
+      return ColoresApp.verde;
+    } else if (cuotasFaltantes <= 7) {
+      return Colors.orange;
+    } else if (cuotasFaltantes > 7 && cuotasFaltantes <= 50) {
+      return ColoresApp.rojo;
     } else {
-      return ColoresApp.rojoLogo; // Atraso grave
+      return ColoresApp.cafe;
     }
   }
 
   String _obtenerMensajeMora() {
-    // Obtener fechas y datos básicos
+    // Obtener datos del cliente
     final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
     final tipoPrestamo =
         int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
-    final totalAbonosRealizados =
-        int.tryParse(cliente['cantidad_cuotas'].toString()) ?? 0;
+    final valorCuota =
+        double.tryParse(cliente['pres_valorCuota'].toString()) ?? 0;
+    final totalAbonado =
+        double.tryParse(cliente['total_abonos'].toString()) ?? 0;
 
-    // Verificar si es un préstamo nuevo (de hoy)
+    // Verificaciones básicas
     final esMismoDia = fechaPrestamo.year == hoy.year &&
         fechaPrestamo.month == hoy.month &&
         fechaPrestamo.day == hoy.day;
+    if (esMismoDia) return 'Préstamo nuevo de hoy';
 
-    if (esMismoDia) {
-      return 'Préstamo nuevo de hoy';
+    // Calcular días laborables
+    final diasLaborablesTranscurridos =
+        _calcularDiasLaborables(fechaPrestamo, hoy);
+    final intervaloPago = tipoPrestamo == 1 ? 1 : (tipoPrestamo == 2 ? 6 : 13);
+    final periodoPago = tipoPrestamo == 1
+        ? 'diario'
+        : (tipoPrestamo == 2 ? 'semanal' : 'quincenal');
+
+    // Calcular cuotas equivalentes y esperadas
+    final cuotasEquivalentes = (totalAbonado / valorCuota).floor();
+    final cuotasEsperadas =
+        (diasLaborablesTranscurridos / intervaloPago).ceil();
+    final cuotasFaltantes = cuotasEsperadas - cuotasEquivalentes;
+
+    // Mensaje simplificado
+    if (cuotasFaltantes <= 0) {
+      return 'Cliente al día';
+    } else if (cuotasFaltantes > 50) {
+      return 'Cliente en mora extrema';
     }
-
-    // Si es domingo y el préstamo es del día anterior
-    if (hoy.weekday == 7 && fechaPrestamo.difference(hoy).inDays == -1) {
-      return 'Préstamo reciente (no se cobra en domingo)';
-    }
-
-    // Determinar el período de pago según el tipo
-    String periodoPago = '';
-    int intervaloPago = 0;
-
-    switch (tipoPrestamo) {
-      case 1:
-        periodoPago = 'diario';
-        intervaloPago = 1;
-        break;
-      case 2:
-        periodoPago = 'semanal';
-        intervaloPago = 6;
-        break;
-      case 3:
-        periodoPago = 'quincenal';
-        intervaloPago = 13;
-        break;
-      default:
-        periodoPago = 'diario';
-        intervaloPago = 1;
-    }
-
-    // Calcular cuántos días han pasado desde que se otorgó el préstamo
-    final diasTranscurridos = _calcularDiasLaborables(fechaPrestamo, hoy);
-
-    // Calcular cuántos pagos debería haber realizado ya
-    int abonosEsperados = (diasTranscurridos / intervaloPago).ceil();
-
-    // *** NUEVA VALIDACIÓN: Préstamo reciente (1-2 días) sin abonos ***
-    if (cliente['ultimo_abono'] == null &&
-        diasTranscurridos <= 2 &&
-        abonosEsperados <= 1) {
-      return 'Préstamo reciente ($diasTranscurridos día${diasTranscurridos > 1 ? "s" : ""}): Debe 1 cuota (pago $periodoPago)';
-    }
-
-    // Si no hay abonos registrados
-    if (cliente['ultimo_abono'] == null) {
-      return 'Sin pagos registrados: debe $abonosEsperados cuota${abonosEsperados > 1 ? "s" : ""} (pago $periodoPago)';
-    }
-
-    // Calcular cuántos pagos faltan
-    int abonosFaltantes = abonosEsperados - totalAbonosRealizados;
-
-    if (abonosFaltantes <= 0) {
-      if (abonosFaltantes < 0) {
-        // Adelantado en pagos
-        return 'Cliente adelantado en ${-abonosFaltantes} cuota${-abonosFaltantes > 1 ? "s" : ""} (pago $periodoPago)';
-      }
-      return 'Al día (pago $periodoPago)';
-    } else if (abonosFaltantes == 1) {
-      return 'Debe 1 cuota (pago $periodoPago)';
-    } else {
-      return 'Debe $abonosFaltantes cuotas (pago $periodoPago)';
-    }
+    return 'Debe $cuotasFaltantes cuota${cuotasFaltantes != 1 ? 's' : ''} - pago $periodoPago';
   }
 
   @override
@@ -716,11 +680,11 @@ class ClienteCard extends StatelessWidget {
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(
-                  'Cuota: \$${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
+                  'Valor: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(
-                  'Valor: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                  'Cuota: \$${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
                 Text(

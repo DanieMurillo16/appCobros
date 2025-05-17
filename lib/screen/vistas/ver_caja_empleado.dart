@@ -158,7 +158,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     if (!mounted) return;
     try {
       final empleados =
-          await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+          await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
       if (!mounted) return;
 
       setState(() {

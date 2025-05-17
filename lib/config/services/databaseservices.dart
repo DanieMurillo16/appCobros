@@ -279,7 +279,7 @@ class Databaseservices {
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchEmpleados(
+  Future<List<Map<String, dynamic>>> fetcListaEmpleadosSpinner(
       String rol, String cobro) async {
     bool conectado = await Conexioninternet().isConnected();
     if (!conectado) {

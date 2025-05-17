@@ -51,6 +51,7 @@ class SpinnerEmpleados extends StatelessWidget {
       }).toList(),
       initialValue: valorSeleccionado,
       onChanged: onChanged,
+      hint: Text(hintText ?? "Seleccione un empleado"),
     );
   }
 }

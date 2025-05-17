@@ -60,7 +60,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados = await _databaseServices.fetchEmpleados(
+      final empleados = await _databaseServices.fetcListaEmpleadosSpinner(
           _preferences.cargo, _preferences.cobro);
       if (!mounted) return;
       setState(() {

@@ -15,7 +15,6 @@ import 'package:cobrosapp/screen/widgets/appbar.dart';
 import 'package:cobrosapp/screen/widgets/drawemenu.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
 import '../../config/services/validacion_estado_usuario.dart';
 import '../widgets/spinner.dart';
 
@@ -68,7 +67,7 @@ class _VerListaPrestamosState extends BaseScreen<VerListaPrestamos> {
   Future<void> _loadEmpleados() async {
     if (!mounted) return;
     try {
-      final empleados = await Databaseservices().fetchEmpleados(_pref.cargo, _pref.cobro);
+      final empleados = await Databaseservices().fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados;
       });

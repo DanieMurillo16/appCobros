@@ -65,7 +65,7 @@ class _VerListaClientesPrestamosTerminadosState
     }
     try {
       final empleados =
-          await Databaseservices().fetchEmpleados(pref.cargo, pref.cobro);
+          await Databaseservices().fetcListaEmpleadosSpinner(pref.cargo, pref.cobro);
       if (mounted) {
         // Verificar nuevamente antes de llamar setState
         setState(() {

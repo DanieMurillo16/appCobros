@@ -92,7 +92,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
   // Cargar empleados (sólo si cargo = 3 o 4)
   Future<void> _loadEmpleados() async {
     try {
-      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo,_pref.cobro);
+      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo,_pref.cobro);
       setState(() {
         _roles = empleados;
       });
@@ -229,6 +229,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                   SpinnerEmpleados(
                     empleados: _roles, // lista de empleados
                     valorSeleccionado: _rolSeleccionado,
+                    hintText: "Seleccionar empleado",
                     valueid: "fk_roll", // campo id
                     nombreCompleto: "nombreCompleto", // campo a mostrar
                     onChanged: (value) {

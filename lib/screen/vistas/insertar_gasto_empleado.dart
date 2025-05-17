@@ -108,7 +108,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
 
   Future<void> _loadEmpleados() async {
     try {
-      final empleados = await _dataBaseServices.fetchEmpleados(_pref.cargo, _pref.cobro);
+      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados;
       });
