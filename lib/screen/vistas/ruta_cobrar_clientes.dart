@@ -24,7 +24,8 @@ class RutaCobrador extends StatefulWidget {
   State<RutaCobrador> createState() => _RutaCobradorState();
 }
 
-class _RutaCobradorState extends State<RutaCobrador> {
+class _RutaCobradorState extends State<RutaCobrador>
+    with SingleTickerProviderStateMixin {
   final Databaseservices _databaseServices = Databaseservices();
   final PreferenciasUsuario _preferences = PreferenciasUsuario();
   List<Map<String, dynamic>> clientes = [];
@@ -36,9 +37,43 @@ class _RutaCobradorState extends State<RutaCobrador> {
   String? _rolSeleccionado;
   bool _isLoading = true;
 
+  // Variable para calcular el progreso
+  double get _progreso {
+    if (clientes.isEmpty) return 0.0;
+    int clientesCompletados =
+        clientes.where((cliente) => cliente['estado'] == true).length;
+    return clientesCompletados / clientes.length;
+  }
+
+// Para animación del progreso (opcional)
+  late AnimationController _progressController;
+  late Animation<double> _progressAnimation;
+
+  void _updateProgress() {
+    if (!mounted) return;
+
+    final newProgress = _progreso;
+    setState(() {
+      // Asegurar que el controlador esté inicializado
+      if (!_progressController.isAnimating) {
+        _progressController.value = newProgress;
+      }
+      _progressController.animateTo(newProgress);
+    });
+  }
+
   @override
   void initState() {
     super.initState();
+    _progressController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _progressAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_progressController)
+          ..addListener(() {
+            setState(() {});
+          });
     _initializeData();
   }
 
@@ -54,6 +89,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _progressController.dispose();
     super.dispose();
   }
 
@@ -148,6 +184,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
         clientes = clientesOrdenados;
         _isLoading = false;
       });
+      _updateProgress();
     } catch (e) {
       if (!mounted) return;
       debugPrint("Error al inicializar ruta: $e");
@@ -165,6 +202,7 @@ class _RutaCobradorState extends State<RutaCobrador> {
                   })
               .toList();
         });
+        _updateProgress();
       } catch (fetchError) {
         debugPrint("Error al cargar clientes: $fetchError");
       } finally {
@@ -324,6 +362,65 @@ class _RutaCobradorState extends State<RutaCobrador> {
                       },
                     ),
                   ),
+                // NUEVA SECCIÓN: Barra de progreso
+                Container(
+                  color: ColoresApp.blanco,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Progreso de la ruta',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: ColoresApp.negro,
+                            ),
+                          ),
+                          Text(
+                            '${(_progreso * 100).round()}%',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _progreso < 0.3
+                                  ? Colors.red
+                                  : _progreso < 0.7
+                                      ? Colors.orange
+                                      : Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: _progressAnimation.value,
+                        backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          _progressAnimation.value < 0.3
+                              ? Colors.red
+                              : _progressAnimation.value < 0.7
+                                  ? Colors.orange
+                                  : Colors.green,
+                        ),
+                        minHeight: 8,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${clientes.where((c) => c['estado'] == true).length} de ${clientes.length} clientes completados',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
                 Expanded(
                     child: Listener(
                   onPointerMove: (PointerMoveEvent event) {
@@ -342,9 +439,9 @@ class _RutaCobradorState extends State<RutaCobrador> {
                           index: index,
                           isDragging: _draggingIndex == index,
                           onEstadoChanged: (index, value) {
-                            // Solo actualiza el valor en la lista sin llamar a setState
                             clientes[index]['estado'] = value;
-                            // Opcionalmente, guarda en background sin mostrar indicadores
+                            _updateProgress();
+                            setState(() {});
                             _guardarSinRefrescar(index, value);
                           },
                           onAbonoTap: _navegarAInsertarAbono,

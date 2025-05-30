@@ -21,12 +21,6 @@ version: 1.0.0+1
 environment:
   sdk: ^3.5.4
 
-# Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
 dependencies:
   connectivity_plus: ^6.1.1
   cupertino_icons: ^1.0.8
@@ -36,11 +30,11 @@ dependencies:
   firebase_core: ^3.8.1
   flutter:
     sdk: flutter
-  flutter_form_builder: ^9.5.0
+  flutter_form_builder: ^10.0.1
   flutter_smart_dialog: ^4.9.8+5
   form_builder_validators: ^11.0.0
   http: ^1.2.2
-  intl: ^0.19.0
+  intl: ^0.20.2
   provider: ^6.1.2
   shared_preferences: ^2.3.3
   sizer: ^3.0.4
@@ -53,22 +47,22 @@ dev_dependencies:
   flutter_launcher_icons: ^0.14.3
 
 flutter_launcher_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
   image_path: "assets/icon/iconap.png"
-  min_sdk_android: 21 # android min sdk min:16, default 21
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/iconap.png"
+  min_sdk_android: 21
+  remove_alpha_ios: true
+  windows:
+    generate: false
+  web:
+    generate: false
+  macos:
+    generate: false
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
-# The following section is specific to Flutter packages.
 flutter:
-
-  # The following line ensures that the Material Icons font is
-  # included with your application, so that you can use the icons in
-  # the material Icons class.
   uses-material-design: true
-
-  # To add assets to your application, add an assets section, like this:
   assets:
     - assets/
     - assets/perfil.jpg

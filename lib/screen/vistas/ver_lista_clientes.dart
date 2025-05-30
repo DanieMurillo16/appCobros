@@ -229,8 +229,8 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     if (!mounted) return;
 
     try {
-      final empleados =
-          await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
+      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(
+          _pref.cargo, _pref.cobro);
 
       if (mounted) {
         setState(() {
@@ -386,53 +386,246 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   }
 
   Widget informacionPagos() {
+    
+    // Calcular el progreso
+    double calcularProgresoClientes() {
+
+      if (_clientes.isEmpty) return 0.0;
+      int clientesAlDia = _clientes.where((cliente) {
+        final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
+        final hoy = DateTime.now();
+        final tipoPrestamo =
+            int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
+        final valorCuota =
+            double.tryParse(cliente['pres_valorCuota'].toString()) ?? 0;
+        final totalAbonado =
+            double.tryParse(cliente['total_abonos'].toString()) ?? 0;
+
+        // Calcular días laborables y cuotas
+        final diasLaborablesTranscurridos =
+            _calcularDiasLaborables(fechaPrestamo, hoy);
+        final intervaloPago =
+            tipoPrestamo == 1 ? 1 : (tipoPrestamo == 2 ? 6 : 13);
+        final cuotasEquivalentes = (totalAbonado / valorCuota).floor();
+        final cuotasEsperadas =
+            (diasLaborablesTranscurridos / intervaloPago).ceil();
+        final cuotasFaltantes = cuotasEsperadas - cuotasEquivalentes;
+
+        // Cliente al día si no debe cuotas o debe 4 o menos
+        return cuotasFaltantes <= 4;
+      }).length;
+
+      return clientesAlDia / _clientes.length;
+    }
+
+    final progreso = calcularProgresoClientes();
+
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 0.5.h),
+      padding: EdgeInsets.symmetric(horizontal: 4.w),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          const Text(
-            'Estado de pagos de clientes: ',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Estado general de clientes',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: ColoresApp.negro,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          '${(progreso * 100).round()}%',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: progreso < 0.3
+                                ? Colors.red
+                                : progreso < 0.7
+                                    ? Colors.orange
+                                    : Colors.green,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.info_outline,
+                            size: 20,
+                            color: ColoresApp.rojoLogo,
+                          ),
+                          onPressed: () =>
+                              _mostrarDialogoInformacionColores(context),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                LinearProgressIndicator(
+                  value: progreso,
+                  backgroundColor: Colors.grey.withValues(alpha: 0.3),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    progreso < 0.3
+                        ? Colors.red
+                        : progreso < 0.7
+                            ? Colors.orange
+                            : Colors.green,
+                  ),
+                  minHeight: 8,
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  '${_clientes.where((c) => _estaAlDia(c)).length} de ${_clientes.length} clientes al día',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey[600],
+                  ),
+                ),
+              ],
             ),
           ),
-          Row(
-            spacing: 10,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _indicadorColor(
-                color: ColoresApp.morado,
-                texto: 'Nuevo hoy',
-              ),
-              _indicadorColor(
-                color: ColoresApp.verde,
-                texto: '0-4 cuotas',
-              ),
-              _indicadorColor(
-                color: Colors.orange,
-                texto: '5-7 cuotas',
-              )
-            ],
-          ),
-          Row(
-            spacing: 10,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _indicadorColor(
-                color: ColoresApp.rojoLogo,
-                texto: '+8 cuotas',
-              ),
-              _indicadorColor(
-                color: ColoresApp.cafe,
-                texto: 'Vencido por tiempo',
-              ),
-            ],
-          ),
+          const Divider(),
         ],
       ),
     );
+  }
+
+  void _mostrarDialogoInformacionColores(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Container(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Estado de pagos de los clientes',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: ColoresApp.negro,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'El estado general de los clientes se calcula con los clientes que esten al dia.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w400,
+                    color: Colors.grey[600],
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 15),
+                // Primera fila con 3 indicadores en Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    _indicadorColor(
+                      color: ColoresApp.morado,
+                      texto: 'Nuevo hoy',
+                    ),
+                    _indicadorColor(
+                      color: ColoresApp.verde,
+                      texto: '0-4 cuotas',
+                    ),
+                    _indicadorColor(
+                      color: Colors.orange,
+                      texto: '5-7 cuotas',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                // Segunda fila con 2 indicadores en Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _indicadorColor(
+                      color: ColoresApp.rojoLogo,
+                      texto: '+8 cuotas',
+                    ),
+                    const SizedBox(width: 16),
+                    _indicadorColor(
+                      color: Colors.brown,
+                      texto: 'Vencido',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  style: ButtonStyle(
+                    backgroundColor:
+                        WidgetStateProperty.all<Color>(ColoresApp.verde),
+                  ),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text(
+                    'Aceptar',
+                    style: TextStyle(color: ColoresApp.blanco),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  int _calcularDiasLaborables(DateTime inicio, DateTime fin) {
+    // Comenzar desde el día siguiente al préstamo
+    DateTime actual = DateTime(inicio.year, inicio.month, inicio.day)
+        .add(const Duration(days: 1));
+    int dias = 0;
+
+    while (actual.isBefore(fin) || actual.isAtSameMomentAs(fin)) {
+      // No contar domingos (weekday 7)
+      if (actual.weekday != 7) {
+        dias++;
+      }
+      actual = actual.add(const Duration(days: 1));
+    }
+    return dias;
+  }
+
+// Agregar este método auxiliar
+  bool _estaAlDia(Map<String, dynamic> cliente) {
+    final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
+    final hoy = DateTime.now();
+    final tipoPrestamo =
+        int.tryParse(cliente['fk_tipo_prestamo'].toString()) ?? 1;
+    final valorCuota =
+        double.tryParse(cliente['pres_valorCuota'].toString()) ?? 0;
+    final totalAbonado =
+        double.tryParse(cliente['total_abonos'].toString()) ?? 0;
+
+    final diasLaborablesTranscurridos =
+        _calcularDiasLaborables(fechaPrestamo, hoy);
+    final intervaloPago = tipoPrestamo == 1 ? 1 : (tipoPrestamo == 2 ? 6 : 13);
+    final cuotasEquivalentes = (totalAbonado / valorCuota).floor();
+    final cuotasEsperadas =
+        (diasLaborablesTranscurridos / intervaloPago).ceil();
+    final cuotasFaltantes = cuotasEsperadas - cuotasEquivalentes;
+
+    return cuotasFaltantes <= 4;
   }
 
   Widget _indicadorColor({required Color color, required String texto}) {
@@ -467,7 +660,7 @@ class ClienteCard extends StatelessWidget {
   });
 
 // Modificar el método _calcularDiasLaborables
-  int _calcularDiasLaborables(DateTime inicio, DateTime fin) {
+  int calcularDiasLaborables(DateTime inicio, DateTime fin) {
     // Comenzar desde el día siguiente al préstamo
     DateTime actual = DateTime(inicio.year, inicio.month, inicio.day)
         .add(const Duration(days: 1));
@@ -505,7 +698,7 @@ class ClienteCard extends StatelessWidget {
 
     // Calcular días laborables
     final diasLaborablesTranscurridos =
-        _calcularDiasLaborables(fechaPrestamo, hoy);
+        calcularDiasLaborables(fechaPrestamo, hoy);
     if (diasLaborablesTranscurridos == 0) return ColoresApp.verde;
 
     // Calcular cuotas equivalentes basadas en el monto total abonado
@@ -564,7 +757,7 @@ class ClienteCard extends StatelessWidget {
 
     // Calcular días laborables
     final diasLaborablesTranscurridos =
-        _calcularDiasLaborables(fechaPrestamo, hoy);
+        calcularDiasLaborables(fechaPrestamo, hoy);
     final intervaloPago = tipoPrestamo == 1 ? 1 : (tipoPrestamo == 2 ? 6 : 13);
     final periodoPago = tipoPrestamo == 1
         ? 'diario'

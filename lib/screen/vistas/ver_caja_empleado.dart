@@ -91,6 +91,8 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
           _datosPrestamos = resultados[1];
           _datosCancelados = resultados[2];
           _datosMovimientos = resultados[3] as List<Map<String, dynamic>>;
+          _futureCaja = Future.value(calcularCaja());
+
         });
       }
     } catch (e) {
@@ -136,7 +138,6 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     if (_pref.cargo == '4' || _pref.cargo == '3') {
       // Cargar empleados
       _cargarDatosEmpleadosSpinner();
-      _futureCaja = Future.value("0");
     } else {
       // Otros cargos => sin Spinner, cargar datos del día
       fecha.text = _dataBaseServices.obtenerFechaActual();

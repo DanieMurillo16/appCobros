@@ -1,0 +1,2 @@
+/Users/danielmurillo/Desktop/appCobros/android/app/.cxx/RelWithDebInfo/6i5k4u4l/arm64-v8a/CMakeFiles/edit_cache.dir
+/Users/danielmurillo/Desktop/appCobros/android/app/.cxx/RelWithDebInfo/6i5k4u4l/arm64-v8a/CMakeFiles/rebuild_cache.dir
