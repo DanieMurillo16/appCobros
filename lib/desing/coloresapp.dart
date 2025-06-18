@@ -9,7 +9,7 @@ class ColoresApp {
   static const Color blacoOpaco2 = Color.fromRGBO(255, 255, 255, 0.2);
   static const Color negro = Colors.black;
   static const Color grisClarito = Color.fromRGBO(209, 209, 204, 1);
-  static const Color grisOscuro = Color.fromRGBO(255, 255, 255, 0.2);
+  static const Color grisOscuro = Color.fromRGBO(96, 92, 92, 0.2);
   static const Color cafeMarron = Color.fromRGBO(249, 56, 57, 0.2);
   static const Color cafe = Color.fromRGBO(108, 59, 42, 1);
   static const Color rojo = Color.fromRGBO(201, 10, 10, 1);

@@ -6,11 +6,11 @@ import 'package:sizer/sizer.dart';
 import 'package:cobrosapp/config/routes/rutas.dart';
 import 'package:cobrosapp/config/shared/peferences.dart';
 import 'package:cobrosapp/providers/clienteproviders.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await PreferenciasUsuario.init();
-  // Bloquea la orientación a vertical
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -18,6 +18,7 @@ void main() async {
     runApp(const MyApp());
   });
 }
+
 // para ver los cambios de codigo en pcs diferentes
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -34,6 +35,16 @@ class MyApp extends StatelessWidget {
             navigatorObservers: [FlutterSmartDialog.observer],
             builder: FlutterSmartDialog.init(),
             debugShowCheckedModeBanner: false,
+            // 🔑 1) Delegados de localización
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [
+              Locale('es'), // 'es' ya cubre 'es_CO'
+              Locale('en'), // y los que necesites
+            ],
             title: 'Cobros',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),

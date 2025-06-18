@@ -4,6 +4,7 @@ class ApiConstants {
   
   //-----------------Consultas
   static const String loginEndpoint = '$baseUrl/Login.php';
+  static const String actualizarDatosPrestamo = '$baseUrl/actualizarDatosPrestamo.php';
   static const String verificarEstadoUsuario = '$baseUrl/getEstadoUsuario.php?id=';
   static const String verificarEstadoUsuarioCaja = '$baseUrl/verificarEstadoUsuarioCaja.php?id=';
   static const String buscarDatosCliente = '$baseUrl/verDatosCliente.php?id=';
@@ -23,6 +24,7 @@ class ApiConstants {
   static const String verCajaEmpleado = '$baseUrl/verCajaEmpleado2.php?id=';
   static const String verRolesPersona = '$baseUrl/VerRolesPersona.php';
   static const String listaClientesConPrestamosTerminados = '$baseUrl/getClientesCancelados.php?id=';
+  static const String rendimientoEmpleados = '$baseUrl/rendimientoEmpleados.php?from=';
   static const String listaClientesConPrestamos =
       '$baseUrl/getUsuariosConPrestamos4.php?id=';
   static const String listaMovimientosCaja =

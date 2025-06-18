@@ -424,6 +424,7 @@ class _CajaCuentasState extends BaseScreen<CajaCuentas> {
     return FormBuilderDateTimePicker(
       name: 'fecha',
       controller: fecha,
+      locale: const Locale('es', 'CO'),
       initialValue: DateTime(ano, mes, dia),
       inputType: InputType.date,
       format: DateFormat('yyyy-MM-dd'),

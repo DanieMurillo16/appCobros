@@ -42,6 +42,7 @@ class AppTextos {
   // Textos para navbar usuarios
   static const String tituloRegistrarUsuario = "Nuevo Empleado";
   static const String tituloListaUsuarios = "Lista Empleados";
+  static const String tituloRendimiento = "Rendimiento";
   static const String usuarioRegistrar = "Nuevo Empleado";
   static const String gastosTitulo = "Gastos Empleado";
 

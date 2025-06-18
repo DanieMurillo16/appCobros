@@ -1,6 +1,7 @@
 // ignore_for_file: prefer_interpolation_to_compose_strings
 
 import 'package:cobrosapp/config/entitys/clientes_cancelados_entity.dart';
+import 'package:cobrosapp/config/entitys/rendimiento_empleados_entity.dart';
 import 'package:cobrosapp/desing/textosapp.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
@@ -14,6 +15,7 @@ import '../routes/apis.dart';
 
 class Databaseservices {
   final _pref = PreferenciasUsuario();
+  final String baseUrl = 'https://www.cobros.com.co';
 
   Future<List> loginIni(String correo, String pass) async {
     bool conectado = await Conexioninternet().isConnected();
@@ -653,6 +655,21 @@ class Databaseservices {
       }
     } else {
       throw Exception('Error en el servidor: ${response.statusCode}');
+    }
+  }
+
+  Future<List<RedimientoEmpleadosEntity>> listaRendimientoEmpleados(
+      String fechaInicio, String fechaFin) async {
+    var url = Uri.parse(
+        '${ApiConstants.rendimientoEmpleados}$fechaInicio&to=$fechaFin&c=${_pref.cobro}');
+    final consulta = await http.get(url);
+    if (consulta.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(consulta.body);
+      List<RedimientoEmpleadosEntity> datos =
+          data.map((e) => RedimientoEmpleadosEntity.fromJson(e)).toList();
+      return datos;
+    } else {
+      throw Exception('Error al cargar los datos');
     }
   }
 

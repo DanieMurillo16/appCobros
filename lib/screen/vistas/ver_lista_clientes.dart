@@ -1,3 +1,4 @@
+import 'package:cobrosapp/screen/vistas/dialogo_modificar_prestamo_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:sizer/sizer.dart';
 import 'package:cobrosapp/config/routes/rutas.dart';
@@ -64,6 +65,11 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     super.initState();
     _scrollController.addListener(_onScroll);
     _initializeData();
+  }
+
+  Future<void> refreshData() async {
+    // Simplemente reaplicas tu inicialización
+    await _initializeData();
   }
 
   @override
@@ -258,11 +264,6 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     }
   }
 
-  // Agregar un método para refrescar los datos
-  Future<void> _refreshData() async {
-    await _initializeData();
-  }
-
   @override
   Widget build(BuildContext context) {
     _pref.ultimaPagina = rutaNavBarClientes;
@@ -274,7 +275,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
       ),
       drawer: const DrawerMenu(),
       body: RefreshIndicator(
-        onRefresh: _refreshData,
+        onRefresh: refreshData,
         child: Column(
           children: [
             const SizedBox(
@@ -365,6 +366,16 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
                                 _buscadorController.text)[index];
                             return ClienteCard(
                               cliente: cliente,
+                              cargoEmpleado: cargoEmpleado,
+                              onPrestamoModificado: () async {
+                                // Recargar datos manteniendo el empleado seleccionado
+                                if (_rolSeleccionado != null) {
+                                  await _loadClientes(
+                                      empleadoId: _rolSeleccionado);
+                                } else {
+                                  await _loadClientes();
+                                }
+                              },
                               onPressed: () {
                                 Navigator.push(
                                   context,
@@ -386,10 +397,8 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
   }
 
   Widget informacionPagos() {
-    
     // Calcular el progreso
     double calcularProgresoClientes() {
-
       if (_clientes.isEmpty) return 0.0;
       int clientesAlDia = _clientes.where((cliente) {
         final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
@@ -606,7 +615,7 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
     return dias;
   }
 
-// Agregar este método auxiliar
+// Agregar este metodo auxiliar
   bool _estaAlDia(Map<String, dynamic> cliente) {
     final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
@@ -652,12 +661,15 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
 class ClienteCard extends StatelessWidget {
   final Map<String, dynamic> cliente;
   final VoidCallback onPressed;
+  final String cargoEmpleado;
+  final VoidCallback? onPrestamoModificado;
 
-  const ClienteCard({
-    super.key,
-    required this.cliente,
-    required this.onPressed,
-  });
+  const ClienteCard(
+      {super.key,
+      required this.cliente,
+      required this.onPressed,
+      required this.cargoEmpleado,
+      this.onPrestamoModificado});
 
 // Modificar el método _calcularDiasLaborables
   int calcularDiasLaborables(DateTime inicio, DateTime fin) {
@@ -872,21 +884,57 @@ class ClienteCard extends StatelessWidget {
                   'Fecha del préstamo: ${cliente['pres_fecha']}',
                   style: const TextStyle(color: ColoresApp.negro),
                 ),
-                Text(
-                  'Valor: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
-                  style: const TextStyle(color: ColoresApp.negro),
-                ),
-                Text(
-                  'Cuota: \$${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
-                  style: const TextStyle(color: ColoresApp.negro),
-                ),
-                Text(
-                  'Abonos: \$${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
-                  style: const TextStyle(color: ColoresApp.negro),
-                ),
-                Text(
-                  'Restante: \$${FormatoMiles().formatearCantidad(((int.tryParse(cliente['pres_cantidadTotal']?.toString() ?? '0') ?? 0) - (int.tryParse(cliente['total_abonos']?.toString() ?? '0') ?? 0)).toString())}',
-                  style: const TextStyle(color: ColoresApp.negro),
+                Row(
+                  children: [
+                    Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Valor: \$${FormatoMiles().formatearCantidad(cliente['pres_cantidadTotal'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Cuota: \$${FormatoMiles().formatearCantidad(cliente['pres_valorCuota'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Abonos: \$${FormatoMiles().formatearCantidad(cliente['total_abonos'])}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                        Text(
+                          'Restante: \$${FormatoMiles().formatearCantidad(((int.tryParse(cliente['pres_cantidadTotal']?.toString() ?? '0') ?? 0) - (int.tryParse(cliente['total_abonos']?.toString() ?? '0') ?? 0)).toString())}',
+                          style: const TextStyle(color: ColoresApp.negro),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    if (cargoEmpleado == '4')
+                      Expanded(
+                          child: IconButton(
+                        icon: const Icon(
+                          Icons.edit,
+                          color: ColoresApp.rojo,
+                        ),
+                        onPressed: () async {
+                          final resultado = await showDialog<bool>(
+                            context: context,
+                            builder: (context) =>
+                                DialogoModificarPrestamoScreen(
+                              idPrestamo: cliente['idprestamos'],
+                              montoActual: cliente['pres_cantidadTotal'],
+                              valorCuotas: cliente['pres_valorCuota'],
+                              cantidadCuotas: cliente['pres_cuotas'],
+                              onSuccess: onPrestamoModificado,
+                            ),
+                          );
+                          if (resultado == true &&
+                              onPrestamoModificado != null) {
+                            onPrestamoModificado!(); // dispara el callback
+                          }
+                        },
+                      ))
+                  ],
                 ),
                 const Divider(),
                 Text(

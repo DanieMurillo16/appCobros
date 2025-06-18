@@ -213,6 +213,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
             name: 'tipoMovimiento',
             focusColor: ColoresApp.rojo,
             decoration: InputDecoration(
+              hintText: 'Seleccione tipo de movimiento',
               floatingLabelStyle: const TextStyle(color: ColoresApp.rojo),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -222,6 +223,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
                 ),
               ),
               labelText: 'Tipo de Movimiento',
+              hint: const Text('Seleccione tipo de movimiento'),
               border: const OutlineInputBorder(
                 borderSide: BorderSide(
                   color: ColoresApp.rojo,

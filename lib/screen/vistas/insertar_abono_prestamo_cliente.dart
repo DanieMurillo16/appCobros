@@ -92,7 +92,8 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
   // Cargar empleados (sólo si cargo = 3 o 4)
   Future<void> _loadEmpleados() async {
     try {
-      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo,_pref.cobro);
+      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(
+          _pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados;
       });
@@ -556,6 +557,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
             esAbonoCompleto
                 ? '¿Abonar y crear nuevo préstamo?'
                 : 'Confirmar abono',
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           content: Text(
             esAbonoCompleto
@@ -569,7 +571,10 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
 
                 Navigator.of(ctx).pop(); // Solo cerrar el diálogo
               },
-              child: const Text('Cancelar'),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: ColoresApp.rojo),
+              ),
             ),
             if (esAbonoCompleto)
               TextButton(
@@ -587,7 +592,7 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                 },
                 child: const Text('Solo abonar'),
               ),
-            TextButton(
+            ElevatedButton(
               onPressed: () async {
                 Navigator.of(ctx).pop();
                 SmartDialog.showLoading(msg: 'Procesando...');
@@ -608,6 +613,10 @@ class __AbonoprestamoState extends BaseScreen<Abonoprestamo> {
                   SmartDialog.showToast('Error al registrar el abono');
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColoresApp.verde,
+                foregroundColor: Colors.white,
+              ),
               child: Text(esAbonoCompleto ? 'Abonar y prestar' : 'Confirmar'),
             ),
           ],
