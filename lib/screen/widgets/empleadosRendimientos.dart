@@ -51,7 +51,7 @@ class EmpleadosRendimientos extends StatelessWidget {
             title: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: colorPosNeg.withOpacity(.15),
+                  backgroundColor: colorPosNeg.withValues(alpha: .15),
                   child: Text(e.perNombre.substring(0, 1),
                       style: TextStyle(color: colorPosNeg)),
                 ),
@@ -96,7 +96,7 @@ class EmpleadosRendimientos extends StatelessWidget {
               const Divider(),
               _fila('Salidas (gastos):', _fmtCop.format(salidas),valorColor: ColoresApp.rojo),
               const Divider(),
-              _fila('Flujo neto de caja:',
+              _fila('Rendimiento:',
                   _fmtCop.format(flujoNeto),
                   valorColor: colorPosNeg),
             ],

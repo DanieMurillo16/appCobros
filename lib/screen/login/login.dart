@@ -59,7 +59,7 @@ class _LoginState extends State<Login> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "Prestamos",
+                            "Cobra",
                             style: TextStyle(
                               color: ColoresApp.rojoLogo,
                               fontSize: 26,
@@ -68,7 +68,7 @@ class _LoginState extends State<Login> {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            "JS",
+                            "Go",
                             style: TextStyle(
                               color: ColoresApp.verde,
                               fontSize: 26,

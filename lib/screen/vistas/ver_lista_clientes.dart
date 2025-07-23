@@ -368,7 +368,6 @@ class _ClientesListaState extends BaseScreen<ClientesLista> {
                               cliente: cliente,
                               cargoEmpleado: cargoEmpleado,
                               onPrestamoModificado: () async {
-                                // Recargar datos manteniendo el empleado seleccionado
                                 if (_rolSeleccionado != null) {
                                   await _loadClientes(
                                       empleadoId: _rolSeleccionado);
@@ -671,15 +670,12 @@ class ClienteCard extends StatelessWidget {
       required this.cargoEmpleado,
       this.onPrestamoModificado});
 
-// Modificar el método _calcularDiasLaborables
   int calcularDiasLaborables(DateTime inicio, DateTime fin) {
-    // Comenzar desde el día siguiente al préstamo
     DateTime actual = DateTime(inicio.year, inicio.month, inicio.day)
         .add(const Duration(days: 1));
     int dias = 0;
 
     while (actual.isBefore(fin) || actual.isAtSameMomentAs(fin)) {
-      // No contar domingos (weekday 7)
       if (actual.weekday != 7) {
         dias++;
       }
@@ -689,7 +685,6 @@ class ClienteCard extends StatelessWidget {
   }
 
   Color _obtenerColorAvatar() {
-    // Obtener datos del cliente
     final fechaPrestamo = DateTime.parse(cliente['pres_fecha']);
     final hoy = DateTime.now();
     final tipoPrestamo =

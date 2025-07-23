@@ -108,7 +108,8 @@ class _GastosStateState extends BaseScreen<GastosState> {
 
   Future<void> _loadEmpleados() async {
     try {
-      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(_pref.cargo, _pref.cobro);
+      final empleados = await _dataBaseServices.fetcListaEmpleadosSpinner(
+          _pref.cargo, _pref.cobro);
       setState(() {
         _roles = empleados;
       });
@@ -175,6 +176,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
               child: FormBuilderDropdown<String>(
                 name: 'empleado',
                 decoration: InputDecoration(
+                  hintText: 'Seleccione un empleado',
                   floatingLabelStyle: const TextStyle(color: ColoresApp.rojo),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -213,7 +215,8 @@ class _GastosStateState extends BaseScreen<GastosState> {
             name: 'tipoMovimiento',
             focusColor: ColoresApp.rojo,
             decoration: InputDecoration(
-              hintText: 'Seleccione tipo de movimiento',
+              hintText: 'Seleccione el tipo de movimiento',
+              labelText: 'Tipo de Movimiento',
               floatingLabelStyle: const TextStyle(color: ColoresApp.rojo),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -222,8 +225,6 @@ class _GastosStateState extends BaseScreen<GastosState> {
                   width: 2.0,
                 ),
               ),
-              labelText: 'Tipo de Movimiento',
-              hint: const Text('Seleccione tipo de movimiento'),
               border: const OutlineInputBorder(
                 borderSide: BorderSide(
                   color: ColoresApp.rojo,
@@ -338,9 +339,7 @@ class _GastosStateState extends BaseScreen<GastosState> {
                           if (formData['tipoCaja'] == "Caja General") {
                             final data = await Databaseservices()
                                 .cerrarCajaCobrador(
-                                  formData['empleado'],
-                                   valor,
-                                   _pref.cobro,
+                                    formData['empleado'], valor, _pref.cobro,
                                     descripcion:
                                         descripcionController.text.trim());
                             if (data['success'] == true) {

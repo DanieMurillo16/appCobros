@@ -205,7 +205,6 @@ class Databaseservices {
           if (data.isNotEmpty) {
             return data[0]['ca_estado'].toString();
           } else {
-            // Lista vacía
             return '0';
           }
         } else {

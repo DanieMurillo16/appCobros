@@ -30,7 +30,7 @@ class _RutaCobradorState extends State<RutaCobrador>
   final PreferenciasUsuario _preferences = PreferenciasUsuario();
   List<Map<String, dynamic>> clientes = [];
   int? _draggingIndex;
-  final ScrollController _scrollController = ScrollController();
+  final _scrollController = ScrollController();
 
   // Para el dropdown (empleado a consultar)
   List<Map<String, dynamic>> _roles = [];
@@ -218,7 +218,6 @@ class _RutaCobradorState extends State<RutaCobrador>
     if (viejaPosicion < nuevaPosicion) {
       nuevaPosicion -= 1;
     }
-
     setState(() {
       final cliente = clientes.removeAt(viejaPosicion);
       clientes.insert(nuevaPosicion, cliente);
@@ -274,15 +273,11 @@ class _RutaCobradorState extends State<RutaCobrador>
   void _reiniciarEstados() {
     if (!mounted) return;
 
-    // Actualizar el estado de todos los clientes
     for (var cliente in clientes) {
       cliente['estado'] = false;
     }
 
-    // Guardar los cambios en la base de datos sin actualizar la UI completamente
     _guardarOrden();
-
-    // Forzar reconstrucción completa de la lista
     setState(() {
       // La llamada vacía a setState fuerza la reconstrucción
     });
